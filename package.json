@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-deutschlehrer-bot",
+  "version": "1.0.0",
+  "description": "Professioneller WhatsApp Bot für DaF/DaZ",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "twilio": "^4.19.0",
+    "openai": "^4.24.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
