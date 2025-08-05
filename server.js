@@ -1,301 +1,177 @@
 // ===================================================================
-// WHATSAPP DEUTSCHLEHRER BOT - HAUPTDATEI
+// WHATSAPP DEUTSCHLEHRER BOT - REPARIERTE VERSION
 // ===================================================================
-// Diese Datei ist das "Gehirn" deines Bots
-// Hier passiert ALLES: WhatsApp empfangen, KI antworten, Nutzer verwalten
+// HAUPTÄNDERUNGEN:
+// - Web Admin Panel im Fokus (WhatsApp Admin optional)
+// - Bessere Fehlerbehandlung und Debug-Logs
+// - Einfacherer Registrierungsprozess
+// - Admin/User Konflikt gelöst
 
-// ===== SCHRITT 1: WERKZEUGE LADEN =====
-// Das sind wie "Apps" die unser Bot braucht
-const express = require('express');      // Web-Server (für Admin-Panel)
-const twilio = require('twilio');        // WhatsApp Verbindung
-const OpenAI = require('openai');        // Künstliche Intelligenz
-const fs = require('fs').promises;       // Dateien lesen (für training_data.txt)
-const path = require('path');            // Dateipfade verwalten
+const express = require('express');
+const twilio = require('twilio');
+const OpenAI = require('openai');
+const fs = require('fs').promises;
 
-// ===== SCHRITT 2: EXPRESS APP ERSTELLEN =====
-// Das ist unser Web-Server der 24/7 läuft
 const app = express();
-app.use(express.urlencoded({ extended: true })); // WhatsApp Nachrichten verstehen
-app.use(express.json());                         // JSON Daten verstehen
-app.use(express.static('public'));               // Admin-Panel Dateien bereitstellen
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// ===== SCHRITT 3: VERBINDUNGEN AUFBAUEN =====
-// Hier verbindet sich der Bot mit Twilio und OpenAI
+// ===== VERBINDUNGEN =====
 const client = twilio(
-    process.env.TWILIO_ACCOUNT_SID,    // Deine Twilio Account ID
-    process.env.TWILIO_AUTH_TOKEN      // Dein Twilio Passwort
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
 );
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY  // Dein OpenAI Schlüssel
+    apiKey: process.env.OPENAI_API_KEY
 });
 
-// ===== SCHRITT 4: ADMIN KONFIGURATION =====
-// Wer darf den Bot verwalten? (Du und deine Frau)
+// ===== KONFIGURATION =====
 const ADMIN_NUMBERS = [
-    process.env.ADMIN_PHONE_1 || 'whatsapp:+491234567890',  // DEINE Nummer
-    process.env.ADMIN_PHONE_2 || 'whatsapp:+491234567891'   // Deiner FRAU Nummer
+    process.env.ADMIN_PHONE_1 || 'whatsapp:+491234567890',
+    process.env.ADMIN_PHONE_2 || 'whatsapp:+491234567891'
 ];
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'DeutschLehrer2024!';
 
-// ===== SCHRITT 5: NUTZER STATUS DEFINITIONEN =====
-// Jeder Nutzer kann verschiedene Status haben
+// ===== STATUS DEFINITIONEN =====
 const USER_STATUS = {
-    PENDING: 'pending',       // Wartet auf Genehmigung
-    APPROVED: 'approved',     // Darf den Bot benutzen
-    REJECTED: 'rejected',     // Wurde abgelehnt
-    SUSPENDED: 'suspended'    // Wurde gesperrt
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    SUSPENDED: 'suspended'
 };
 
-// ===== SCHRITT 6: DATEN SPEICHER =====
-// Hier speichert der Bot alle Nutzer-Informationen
-// WICHTIG: In echter Produktion würdest du eine richtige Datenbank benutzen
-let userData = {};           // Alle genehmigten Nutzer
-let pendingUsers = {};       // Nutzer die auf Genehmigung warten
-let customTrainingData = ''; // Das Wissen deiner Frau
+// ===== DATEN SPEICHER =====
+let userData = {};
+let pendingUsers = {};
+let customTrainingData = '';
 
-// ===== SCHRITT 7: TRAINING DATA LADEN =====
-// Beim Start lädt der Bot das Wissen deiner Frau
+// ===== TRAINING DATA LADEN =====
 async function loadTrainingData() {
     try {
         const data = await fs.readFile('./training_data.txt', 'utf8');
         customTrainingData = data;
         console.log('✅ Training Data geladen:', data.length, 'Zeichen');
     } catch (error) {
-        console.log('⚠️ Keine training_data.txt gefunden, verwende Standard-Wissen');
+        console.log('⚠️ Keine training_data.txt gefunden');
         customTrainingData = 'Standard DaF/DaZ Wissen wird verwendet.';
     }
 }
 
-// ===== SCHRITT 8: DEUTSCHLEHRER-GEHIRN =====
-// Das ist der wichtigste Teil! Hier wird deine Frau's Expertise definiert
-const getSystemPrompt = () => `Du bist eine hochqualifizierte DaF/DaZ-Lehrerin mit 15+ Jahren Erfahrung.
+// ===== DEUTSCHLEHRER SYSTEM PROMPT =====
+const getSystemPrompt = () => `Du bist eine hochqualifizierte DaF/DaZ-Lehrerin.
 
-🎓 DEINE QUALIFIKATIONEN:
-- Expertin für Deutsch als Fremdsprache (DaF) und Zweitsprache (DaZ)
-- Spezialistin für arabisch- und französischsprachige Lernende
-- Erfahrung mit allen deutschen Prüfungen (A1-C2, telc, Goethe, DTZ, TestDaF)
-- Kontrastive Linguistik: Arabisch ↔ Deutsch, Französisch ↔ Deutsch
-
-📚 CUSTOM TRAINING DATA (Das Wissen deiner Frau):
+📚 TRAINING DATA:
 ${customTrainingData}
 
-🎯 DEINE UNTERRICHTSMETHODE:
-1. Erkenne das Sprachniveau präzise (A1-C2)
-2. Fokussiere auf EINEN Hauptfehler pro Nachricht
+🎯 UNTERRICHTSMETHODE:
+1. Erkenne Sprachniveau (A1-C2)
+2. Korrigiere einen Hauptfehler pro Nachricht
 3. Erkläre Grammatik kontrastiv zur Muttersprache
-4. Verwende Arabisch/Französisch nur für komplexe Erklärungen
-5. Gib konkrete Übungsaufgaben
-6. Bereite gezielt auf Prüfungen vor
-7. Sei geduldig, motivierend und professionell
+4. Gib konkrete Übungsaufgaben
+5. Sei geduldig und motivierend
 
 ✅ KORREKTUR-STRUKTUR:
-1. Positive Verstärkung zuerst: "Sehr gut, dass Sie..."
-2. Hauptkorrektur: "Eine kleine Verbesserung: ..."
-3. Regel erklären: "Die Regel ist..."
-4. Beispiel geben: "Zum Beispiel..."
-5. Übung vorschlagen: "Versuchen Sie..."
+1. Positive Verstärkung: "Sehr gut, dass Sie..."
+2. Korrektur: "Eine kleine Verbesserung: ..."
+3. Regel: "Die Regel ist..."
+4. Übung: "Versuchen Sie..."`;
 
-🎯 PRÜFUNGSVORBEREITUNG:
-- A1: Grundwortschatz, sich vorstellen, einfache Gespräche
-- A2: Perfekt, Modalverben, Brief schreiben, Alltagssituationen
-- B1: Konjunktiv II, Passiv, Präsentationen, DTZ-Vorbereitung
-- B2+: Komplexe Texte, Diskussionen, berufliche Kommunikation
-
-Antworte immer professionell, geduldig und motivierend!`;
-
-// ===== SCHRITT 9: NUTZER VERWALTUNG =====
-// Funktionen um Nutzer zu verwalten
-
+// ===== NUTZER VERWALTUNG =====
 function getUserData(phoneNumber) {
-    // Wenn Nutzer noch nicht existiert, erstelle neuen Eintrag
     if (!userData[phoneNumber]) {
         userData[phoneNumber] = {
             status: USER_STATUS.PENDING,
-            level: null,                    // A1, A2, B1, etc.
-            targetExam: null,              // Goethe, telc, DTZ, etc.
+            level: null,
             lessonsCompleted: 0,
-            vocabulary: [],
-            weaknesses: [],                // Schwächen des Schülers
-            strengths: [],                 // Stärken des Schülers
             lastActive: new Date(),
-            streak: 0,                     // Wie viele Tage hintereinander aktiv
             registrationDate: new Date(),
-            approvedBy: null,              // Welcher Admin hat genehmigt
-            personalInfo: {}
+            personalInfo: {},
+            registrationStep: null
         };
+        console.log(`🆕 Neuer Nutzer erstellt: ${phoneNumber}`);
     }
     return userData[phoneNumber];
 }
 
-// ===== SCHRITT 10: FREIGABE-SYSTEM =====
-// Wenn sich jemand registriert, bekommen Admins eine Benachrichtigung
-async function requestApproval(phoneNumber, userInfo) {
-    pendingUsers[phoneNumber] = {
-        ...userInfo,
-        requestDate: new Date(),
-        status: USER_STATUS.PENDING
-    };
-
-    // Nachricht an alle Admins senden
-    const approvalMessage = `🔔 NEUE ANMELDUNG FÜR DEUTSCHLEHRER-BOT
-
-📱 Telefon: ${phoneNumber}
-👤 Name: ${userInfo.name}
-🌍 Herkunft: ${userInfo.country}
-🗣️ Sprachen: ${userInfo.languages}
-🎯 Lernziel: ${userInfo.goal}
-💡 Motivation: ${userInfo.motivation}
-⏰ Anmeldung: ${new Date().toLocaleString('de-DE')}
-
-✅ GENEHMIGEN: Antworte "APPROVE ${phoneNumber}"
-❌ ABLEHNEN: Antworte "REJECT ${phoneNumber}"
-📊 STATISTIK: Antworte "STATS"
-
-Admin Panel: https://deine-app.railway.app/admin`;
-
-    // An alle Admin-Nummern senden
-    for (const adminNumber of ADMIN_NUMBERS) {
-        try {
-            await client.messages.create({
-                body: approvalMessage,
-                from: 'whatsapp:+14155238886', // Twilio Sandbox Nummer
-                to: adminNumber
-            });
-            console.log(`📨 Admin-Benachrichtigung gesendet an ${adminNumber}`);
-        } catch (error) {
-            console.error(`❌ Fehler beim Benachrichtigen von ${adminNumber}:`, error);
-        }
-    }
-}
-
-// ===== SCHRITT 11: ADMIN KOMMANDOS =====
-// Was können Admins per WhatsApp steuern?
+// ===== ADMIN KOMMANDOS (Optional - Web ist primär) =====
 async function handleAdminCommand(message, fromNumber) {
-    // Prüfe: Ist das wirklich ein Admin?
     if (!ADMIN_NUMBERS.includes(fromNumber)) {
-        return false; // Nicht autorisiert
+        return false;
     }
 
-    console.log(`🔧 Admin-Kommando von ${fromNumber}: ${message}`);
+    console.log(`🔧 Admin-Kommando: ${message} von ${fromNumber}`);
 
-    // APPROVE Kommando
-    if (message.includes('APPROVE')) {
-        const phoneNumber = message.split(' ')[1];
-        if (pendingUsers[phoneNumber]) {
-            // Nutzer genehmigen
-            userData[phoneNumber] = {
-                ...getUserData(phoneNumber),
-                ...pendingUsers[phoneNumber],
-                status: USER_STATUS.APPROVED,
-                approvedBy: fromNumber,
-                approvalDate: new Date()
-            };
-            delete pendingUsers[phoneNumber];
-
-            // Nutzer benachrichtigen
-            await client.messages.create({
-                body: `🎉 HERZLICHEN GLÜCKWUNSCH!
-
-Ihre Anmeldung für den Deutschlehrer-Bot wurde genehmigt!
-
-Sie können jetzt mit dem Deutschlernen beginnen. Schreiben Sie einfach eine Nachricht und ich helfe Ihnen beim Deutschlernen.
-
-Viel Erfolg! 📚✨
-
-Ihr digitaler Deutschlehrer 👩‍🏫`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-
-            return `✅ Nutzer ${phoneNumber} wurde erfolgreich genehmigt und benachrichtigt.`;
-        }
-        return `❌ Nutzer ${phoneNumber} nicht in der Warteliste gefunden.`;
-    }
-
-    // REJECT Kommando
-    if (message.includes('REJECT')) {
-        const phoneNumber = message.split(' ')[1];
-        if (pendingUsers[phoneNumber]) {
-            delete pendingUsers[phoneNumber];
-            
-            await client.messages.create({
-                body: `❌ Ihre Anmeldung für den Deutschlehrer-Bot wurde leider nicht genehmigt.
-
-Für weitere Informationen wenden Sie sich bitte an den Administrator.`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-
-            return `❌ Nutzer ${phoneNumber} wurde abgelehnt und benachrichtigt.`;
-        }
-        return `❌ Nutzer ${phoneNumber} nicht in der Warteliste gefunden.`;
-    }
-
-    // STATS Kommando
     if (message.includes('STATS')) {
         const approvedCount = Object.keys(userData).filter(k => userData[k].status === USER_STATUS.APPROVED).length;
         const pendingCount = Object.keys(pendingUsers).length;
-        const suspendedCount = Object.keys(userData).filter(k => userData[k].status === USER_STATUS.SUSPENDED).length;
+        
+        return `📊 BOT STATISTIKEN
+👥 Aktive Nutzer: ${approvedCount}
+⏳ Wartende: ${pendingCount}
+📚 Registriert: ${Object.keys(userData).length}
 
-        const stats = `📊 DEUTSCHLEHRER-BOT STATISTIKEN
-
-👥 Genehmigte Nutzer: ${approvedCount}
-⏳ Wartende Anmeldungen: ${pendingCount}
-🚫 Gesperrte Nutzer: ${suspendedCount}
-📚 Gesamt registriert: ${Object.keys(userData).length}
-
-📈 Level-Verteilung:
-A1: ${Object.values(userData).filter(u => u.level === 'A1').length}
-A2: ${Object.values(userData).filter(u => u.level === 'A2').length}
-B1: ${Object.values(userData).filter(u => u.level === 'B1').length}
-B2+: ${Object.values(userData).filter(u => u.level && !['A1','A2','B1'].includes(u.level)).length}
-
-🏆 Aktivste Nutzer heute: ${Object.values(userData).filter(u => {
-    const today = new Date().toDateString();
-    return new Date(u.lastActive).toDateString() === today;
-}).length}`;
-
-        return stats;
+💻 Web Admin: https://deine-app.railway.app/admin`;
     }
 
-    // SUSPEND Kommando (Nutzer sperren)
-    if (message.includes('SUSPEND')) {
+    if (message.includes('APPROVE')) {
         const phoneNumber = message.split(' ')[1];
-        if (userData[phoneNumber]) {
-            userData[phoneNumber].status = USER_STATUS.SUSPENDED;
-            return `🚫 Nutzer ${phoneNumber} wurde gesperrt.`;
-        }
-        return `❌ Nutzer ${phoneNumber} nicht gefunden.`;
+        return approveUserViaCommand(phoneNumber, fromNumber);
     }
 
-    return false; // Unbekanntes Kommando
+    return false;
 }
 
-// ===== SCHRITT 12: KI-ANTWORT GENERIEREN =====
-// Das ist wo die Magie passiert - hier antwortet der Bot wie deine Frau
-async function getEnhancedAIResponse(userMessage, phoneNumber) {
+// ===== NUTZER GENEHMIGUNG (Hauptfunktion) =====
+async function approveUserViaCommand(phoneNumber, approvedBy) {
+    if (pendingUsers[phoneNumber]) {
+        // Verschiebe von pending zu approved
+        userData[phoneNumber] = {
+            ...getUserData(phoneNumber),
+            ...pendingUsers[phoneNumber],
+            status: USER_STATUS.APPROVED,
+            approvedBy: approvedBy,
+            approvalDate: new Date()
+        };
+        delete pendingUsers[phoneNumber];
+
+        // Nutzer benachrichtigen
+        try {
+            await client.messages.create({
+                body: `🎉 HERZLICHEN GLÜCKWUNSCH!
+
+Ihre Anmeldung wurde genehmigt! Sie können jetzt mit dem Deutschlernen beginnen.
+
+Schreiben Sie einfach: "Hallo, ich möchte Deutsch lernen"
+
+Viel Erfolg! 📚✨`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            console.log(`✅ Genehmigungsbenachrichtigung gesendet an ${phoneNumber}`);
+        } catch (error) {
+            console.error(`❌ Fehler beim Benachrichtigen: ${error}`);
+        }
+
+        return true;
+    }
+    return false;
+}
+
+// ===== KI ANTWORT GENERIEREN =====
+async function getAIResponse(userMessage, phoneNumber) {
     const user = getUserData(phoneNumber);
     
     if (user.status !== USER_STATUS.APPROVED) {
-        return "⛔ Sie sind noch nicht für den Deutschlehrer-Bot freigeschaltet. Bitte warten Sie auf die Genehmigung durch den Administrator.";
+        return "⛔ Sie sind noch nicht freigeschaltet. Bitte warten Sie auf die Genehmigung.";
     }
 
-    // Kontext für die KI zusammenstellen
     const contextPrompt = `
-NUTZER-PROFIL:
-- Status: ${user.status}
-- Sprachniveau: ${user.level || 'Wird ermittelt...'}
-- Zielprüfung: ${user.targetExam || 'Nicht festgelegt'}
-- Abgeschlossene Lektionen: ${user.lessonsCompleted}
-- Bekannte Schwächen: ${user.weaknesses.join(', ') || 'Noch keine bekannt'}
-- Bekannte Stärken: ${user.strengths.join(', ') || 'Noch keine bekannt'}
-- Letztes Niveau-Update: vor ${Math.floor((new Date() - new Date(user.lastActive)) / (1000 * 60 * 60 * 24))} Tagen
+NUTZER: ${userMessage}
+SPRACHNIVEAU: ${user.level || 'Unbekannt'}
 
-AKTUELLE NACHRICHT DES SCHÜLERS: "${userMessage}"
-
-Antworte als professionelle DaF/DaZ-Lehrerin basierend auf deiner Expertise!`;
+Antworte als DaF/DaZ-Lehrerin!`;
 
     try {
         const completion = await openai.chat.completions.create({
@@ -305,34 +181,124 @@ Antworte als professionelle DaF/DaZ-Lehrerin basierend auf deiner Expertise!`;
                 { role: "user", content: contextPrompt }
             ],
             max_tokens: 400,
-            temperature: 0.7 // Etwas Kreativität, aber nicht zu viel
+            temperature: 0.7
         });
 
-        // Nutzer-Aktivität aktualisieren
         user.lastActive = new Date();
-        user.lessonsCompleted += 0.5; // Jede Interaktion zählt als halbe Lektion
-        
         return completion.choices[0].message.content;
     } catch (error) {
-        console.error('❌ OpenAI API Fehler:', error);
-        return `🔧 Entschuldigung, ich habe gerade technische Probleme.
-
-Bitte versuchen Sie es in ein paar Minuten erneut.
-
-Falls das Problem weiterhin besteht, wenden Sie sich an den Administrator.`;
+        console.error('❌ OpenAI Fehler:', error);
+        return "🔧 Technisches Problem. Bitte versuchen Sie es später erneut.";
     }
 }
 
-// ===== SCHRITT 13: WHATSAPP WEBHOOK =====
-// Das ist der wichtigste Teil! Hier kommen alle WhatsApp Nachrichten an
+// ===== REGISTRIERUNG (Vereinfacht) =====
+async function handleRegistration(message, phoneNumber, user) {
+    console.log(`📝 Registrierungsschritt: ${user.registrationStep} für ${phoneNumber}`);
+
+    if (!user.registrationStep) {
+        if (message.toLowerCase().includes('register') || message.toLowerCase().includes('anmelden')) {
+            user.registrationStep = 'name';
+            await client.messages.create({
+                body: `🇩🇪 Willkommen beim Deutschlehrer-Bot!
+
+Für die Anmeldung benötige ich einige Informationen:
+
+👤 Bitte nennen Sie mir Ihren vollständigen Namen.`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            console.log(`✅ Registrierung gestartet für ${phoneNumber}`);
+            return;
+        } else {
+            await client.messages.create({
+                body: `👋 Willkommen beim Deutschlehrer-Bot!
+
+Schreiben Sie "REGISTER" um sich anzumelden.`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            return;
+        }
+    }
+
+    // Registrierungsschritte
+    switch (user.registrationStep) {
+        case 'name':
+            user.personalInfo.name = message;
+            user.registrationStep = 'country';
+            await client.messages.create({
+                body: `Danke, ${message}! 👍\n\n🌍 Aus welchem Land kommen Sie?`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            console.log(`📝 Name gespeichert: ${message}`);
+            break;
+            
+        case 'country':
+            user.personalInfo.country = message;
+            user.registrationStep = 'languages';
+            await client.messages.create({
+                body: `Interessant! 🌍\n\n🗣️ Welche Sprachen sprechen Sie?`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            break;
+            
+        case 'languages':
+            user.personalInfo.languages = message;
+            user.registrationStep = 'goal';
+            await client.messages.create({
+                body: `Super! 🗣️\n\n🎯 Was ist Ihr Deutschlern-Ziel?\n(z.B. "A1 Prüfung", "Alltag", "Beruf")`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            break;
+            
+        case 'goal':
+            user.personalInfo.goal = message;
+            
+            // REGISTRIERUNG ABSCHLIESSEN - IN WARTELISTE EINREIHEN
+            pendingUsers[phoneNumber] = {
+                ...user.personalInfo,
+                requestDate: new Date(),
+                status: USER_STATUS.PENDING,
+                phoneNumber: phoneNumber
+            };
+            
+            console.log(`✅ NUTZER IN WARTELISTE: ${phoneNumber}`, pendingUsers[phoneNumber]);
+            
+            await client.messages.create({
+                body: `✅ REGISTRIERUNG ABGESCHLOSSEN!
+
+📋 Ihre Angaben:
+👤 Name: ${user.personalInfo.name}
+🌍 Land: ${user.personalInfo.country}
+🗣️ Sprachen: ${user.personalInfo.languages}
+🎯 Ziel: ${user.personalInfo.goal}
+
+⏳ Ihre Anmeldung wird jetzt geprüft.
+Sie erhalten eine Nachricht sobald Sie freigeschaltet sind.
+
+Vielen Dank! 🙏`,
+                from: 'whatsapp:+14155238886',
+                to: phoneNumber
+            });
+            
+            console.log(`📊 Aktuelle Warteliste:`, Object.keys(pendingUsers));
+            break;
+    }
+}
+
+// ===== WHATSAPP WEBHOOK =====
 app.post('/webhook', async (req, res) => {
-    const incomingMessage = req.body.Body;      // Was hat der User geschrieben?
-    const fromNumber = req.body.From;           // Von welcher Nummer?
+    const incomingMessage = req.body.Body;
+    const fromNumber = req.body.From;
     
-    console.log(`📱 Nachricht empfangen von ${fromNumber}: "${incomingMessage}"`);
+    console.log(`📱 WEBHOOK: Nachricht von ${fromNumber}: "${incomingMessage}"`);
 
     try {
-        // SCHRITT 1: Ist das ein Admin-Kommando?
+        // Admin-Kommandos prüfen
         const adminResponse = await handleAdminCommand(incomingMessage, fromNumber);
         if (adminResponse) {
             await client.messages.create({
@@ -345,37 +311,28 @@ app.post('/webhook', async (req, res) => {
         }
 
         const user = getUserData(fromNumber);
+        console.log(`👤 User Status: ${user.status}, Step: ${user.registrationStep}`);
 
-        // SCHRITT 2: Registrierungsprozess für neue Nutzer
-        if (user.status === USER_STATUS.PENDING && !user.personalInfo.name) {
+        // Registrierung handhaben
+        if (user.status === USER_STATUS.PENDING && (!user.personalInfo.name || user.registrationStep)) {
             await handleRegistration(incomingMessage, fromNumber, user);
             res.status(200).send('OK');
             return;
         }
 
-        // SCHRITT 3: Ist der Nutzer genehmigt?
+        // Nutzer-Status prüfen
         if (user.status !== USER_STATUS.APPROVED) {
-            let statusMessage = "⏳ Ihre Anmeldung wird noch geprüft. Bitte haben Sie etwas Geduld.";
-            
-            if (user.status === USER_STATUS.REJECTED) {
-                statusMessage = "❌ Ihre Anmeldung wurde leider abgelehnt. Kontaktieren Sie den Administrator für weitere Informationen.";
-            } else if (user.status === USER_STATUS.SUSPENDED) {
-                statusMessage = "🚫 Ihr Zugang wurde temporär gesperrt. Kontaktieren Sie den Administrator.";
-            }
-
             await client.messages.create({
-                body: statusMessage,
+                body: "⏳ Ihre Anmeldung wird noch geprüft. Bitte haben Sie Geduld.",
                 from: 'whatsapp:+14155238886',
                 to: fromNumber
             });
-
             res.status(200).send('OK');
             return;
         }
 
-        // SCHRITT 4: Normale Deutschlehrer-Konversation
-        const aiResponse = await getEnhancedAIResponse(incomingMessage, fromNumber);
-        
+        // Normale Deutschlehrer-Konversation
+        const aiResponse = await getAIResponse(incomingMessage, fromNumber);
         await client.messages.create({
             body: aiResponse,
             from: 'whatsapp:+14155238886',
@@ -386,161 +343,18 @@ app.post('/webhook', async (req, res) => {
         res.status(200).send('OK');
 
     } catch (error) {
-        console.error('❌ Fehler beim Verarbeiten der Nachricht:', error);
-        
-        // Fehler-Nachricht an User senden
-        try {
-            await client.messages.create({
-                body: `🔧 Entschuldigung, es gab einen technischen Fehler.
-
-Bitte versuchen Sie es in ein paar Minuten erneut.
-
-Technische Details für Admin: ${error.message}`,
-                from: 'whatsapp:+14155238886',
-                to: fromNumber
-            });
-        } catch (sendError) {
-            console.error('❌ Konnte Fehler-Nachricht nicht senden:', sendError);
-        }
-
-        res.status(200).send('OK'); // Immer OK zurückgeben, sonst versucht Twilio erneut
+        console.error('❌ WEBHOOK FEHLER:', error);
+        res.status(200).send('OK');
     }
 });
 
-// ===== SCHRITT 14: REGISTRIERUNGSPROZESS =====
-async function handleRegistration(message, phoneNumber, user) {
-    // Erste Nachricht - Registrierung starten
-    if (!user.registrationStep) {
-        if (message.toLowerCase().includes('/register') || message.toLowerCase().includes('register') || message.toLowerCase().includes('anmelden')) {
-            user.registrationStep = 'name';
-            await client.messages.create({
-                body: `🇩🇪 Willkommen beim professionellen Deutschlehrer-Bot!
-
-Ich bin Ihr digitaler DaF/DaZ-Lehrer und helfe Ihnen beim Deutschlernen.
-
-Für die Anmeldung benötige ich einige Informationen:
-
-👤 Bitte nennen Sie mir Ihren vollständigen Namen.`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            return;
-        } else {
-            await client.messages.create({
-                body: `👋 Hallo! Willkommen beim Deutschlehrer-Bot!
-
-Um diesen Service zu nutzen, müssen Sie sich zuerst registrieren.
-
-Schreiben Sie "REGISTER" oder "ANMELDEN" um zu beginnen.
-
-🇩🇪 Hello! Welcome to the German Teacher Bot!
-To use this service, you need to register first.
-Write "REGISTER" to start.
-
-🇫🇷 Bonjour! Bienvenue au Bot Professeur d'Allemand!
-Pour utiliser ce service, vous devez d'abord vous inscrire. 
-Écrivez "REGISTER" pour commencer.
-
-مرحبا! أهلا بك في بوت معلم الألمانية! 🇸🇦
-لاستخدام هذه الخدمة، يجب عليك التسجيل أولاً
-اكتب "REGISTER" للبدء`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            return;
-        }
-    }
-
-    // Registrierungsschritte durchlaufen
-    switch (user.registrationStep) {
-        case 'name':
-            user.personalInfo.name = message;
-            user.registrationStep = 'country';
-            await client.messages.create({
-                body: `Danke, ${message}! 👍
-
-🌍 Aus welchem Land kommen Sie?`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            break;
-            
-        case 'country':
-            user.personalInfo.country = message;
-            user.registrationStep = 'languages';
-            await client.messages.create({
-                body: `Interessant! 🌍
-
-🗣️ Welche Sprachen sprechen Sie? 
-(z.B. "Arabisch und Französisch" oder "Nur Arabisch")`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            break;
-            
-        case 'languages':
-            user.personalInfo.languages = message;
-            user.registrationStep = 'goal';
-            await client.messages.create({
-                body: `Super! 🗣️
-
-🎯 Was ist Ihr Deutschlern-Ziel?
-Beispiele:
-• "A1 Prüfung bestehen"
-• "B1 für die Arbeit"
-• "Alltägliche Gespräche führen"
-• "DTZ (Deutsch-Test für Zuwanderer)"`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            break;
-            
-        case 'goal':
-            user.personalInfo.goal = message;
-            user.registrationStep = 'motivation';
-            await client.messages.create({
-                body: `Sehr gut! 🎯
-
-💡 Warum möchten Sie Deutsch lernen?
-(z.B. "Für die Arbeit", "Ich lebe in Deutschland", "Studium")`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            break;
-            
-        case 'motivation':
-            user.personalInfo.motivation = message;
-            
-            // Registrierung abschließen
-            await requestApproval(phoneNumber, user.personalInfo);
-            
-            await client.messages.create({
-                body: `✅ REGISTRIERUNG ABGESCHLOSSEN!
-
-📋 Ihre Angaben:
-👤 Name: ${user.personalInfo.name}
-🌍 Herkunft: ${user.personalInfo.country}
-🗣️ Sprachen: ${user.personalInfo.languages}
-🎯 Ziel: ${user.personalInfo.goal}
-💡 Motivation: ${user.personalInfo.motivation}
-
-⏳ Ihre Anmeldung wird jetzt vom Administrator geprüft.
-
-Sie erhalten eine Nachricht, sobald Sie freigeschaltet sind. Dies kann bis zu 24 Stunden dauern.
-
-Vielen Dank für Ihr Interesse! 🙏`,
-                from: 'whatsapp:+14155238886',
-                to: phoneNumber
-            });
-            break;
-    }
-}
-
-// ===== SCHRITT 15: ADMIN PANEL (WEB-INTERFACE) =====
-// Eine Webseite wo du Nutzer verwalten kannst
+// ===== WEB ADMIN PANEL (HAUPTFOKUS) =====
 app.get('/admin', (req, res) => {
     const pendingCount = Object.keys(pendingUsers).length;
     const approvedCount = Object.keys(userData).filter(k => userData[k].status === 'approved').length;
+    
+    console.log(`🌐 Admin Panel aufgerufen - Wartende: ${pendingCount}, Aktive: ${approvedCount}`);
+    console.log(`📋 Wartende Nutzer:`, Object.keys(pendingUsers));
     
     res.send(`
 <!DOCTYPE html>
@@ -560,6 +374,11 @@ app.get('/admin', (req, res) => {
             color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px;
             text-align: center;
         }
+        .debug { 
+            background: #fff3cd; border: 1px solid #ffeaa7; 
+            padding: 15px; border-radius: 10px; margin-bottom: 20px;
+            font-family: monospace; font-size: 12px;
+        }
         .stats { 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px; margin-bottom: 30px;
@@ -575,7 +394,6 @@ app.get('/admin', (req, res) => {
         }
         .pending { border-left: 5px solid #ffc107; }
         .approved { border-left: 5px solid #28a745; }
-        .rejected { border-left: 5px solid #dc3545; }
         button { 
             padding: 8px 16px; margin: 5px; border: none; border-radius: 5px; 
             cursor: pointer; font-weight: bold;
@@ -586,6 +404,10 @@ app.get('/admin', (req, res) => {
         .reject:hover { background: #c82333; }
         .user-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0; }
         .info-item { padding: 8px; background: #f8f9fa; border-radius: 5px; }
+        .refresh-btn { 
+            background: #007bff; color: white; padding: 10px 20px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -593,6 +415,16 @@ app.get('/admin', (req, res) => {
         <div class="header">
             <h1>🇩🇪 Deutschlehrer Bot - Admin Panel</h1>
             <p>Professionelle DaF/DaZ Bot-Verwaltung</p>
+        </div>
+        
+        <a href="/admin" class="refresh-btn">🔄 Seite aktualisieren</a>
+        
+        <div class="debug">
+            <strong>🔍 DEBUG INFO:</strong><br>
+            Server Zeit: ${new Date().toLocaleString('de-DE')}<br>
+            Wartende Nutzer: ${JSON.stringify(Object.keys(pendingUsers))}<br>
+            Alle Nutzer: ${JSON.stringify(Object.keys(userData))}<br>
+            Training Data: ${customTrainingData.length} Zeichen geladen<br>
         </div>
         
         <div class="stats">
@@ -613,21 +445,20 @@ app.get('/admin', (req, res) => {
         <h2>⏳ Wartende Anmeldungen (${pendingCount})</h2>
         ${Object.entries(pendingUsers).map(([phone, info]) => `
         <div class="user-card pending">
-            <h3>📱 ${info.name}</h3>
+            <h3>📱 ${info.name || 'Unbekannt'}</h3>
             <div class="user-info">
                 <div class="info-item"><strong>Telefon:</strong> ${phone}</div>
-                <div class="info-item"><strong>Land:</strong> ${info.country}</div>
-                <div class="info-item"><strong>Sprachen:</strong> ${info.languages}</div>
-                <div class="info-item"><strong>Ziel:</strong> ${info.goal}</div>
+                <div class="info-item"><strong>Land:</strong> ${info.country || 'Unbekannt'}</div>
+                <div class="info-item"><strong>Sprachen:</strong> ${info.languages || 'Unbekannt'}</div>
+                <div class="info-item"><strong>Ziel:</strong> ${info.goal || 'Unbekannt'}</div>
             </div>
-            <p><strong>Motivation:</strong> ${info.motivation}</p>
             <p><strong>Anmeldung:</strong> ${new Date(info.requestDate).toLocaleString('de-DE')}</p>
             <button class="approve" onclick="approveUser('${phone}')">✅ Genehmigen</button>
             <button class="reject" onclick="rejectUser('${phone}')">❌ Ablehnen</button>
         </div>
         `).join('')}
         
-        ${pendingCount === 0 ? '<p>🎉 Keine wartenden Anmeldungen!</p>' : ''}
+        ${pendingCount === 0 ? '<div class="user-card"><p>🎉 Keine wartenden Anmeldungen!</p><p><em>Neue Nutzer müssen sich erst über WhatsApp registrieren.</em></p></div>' : ''}
         
         <h2>✅ Aktive Nutzer (${approvedCount})</h2>
         ${Object.entries(userData)
@@ -638,7 +469,6 @@ app.get('/admin', (req, res) => {
             <div class="user-info">
                 <div class="info-item"><strong>Telefon:</strong> ${phone}</div>
                 <div class="info-item"><strong>Level:</strong> ${user.level || 'Unbekannt'}</div>
-                <div class="info-item"><strong>Lektionen:</strong> ${Math.floor(user.lessonsCompleted)}</div>
                 <div class="info-item"><strong>Letztes Login:</strong> ${new Date(user.lastActive).toLocaleDateString('de-DE')}</div>
             </div>
         </div>
@@ -661,6 +491,8 @@ app.get('/admin', (req, res) => {
             } else {
                 alert('❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
             }
+        }).catch(err => {
+            alert('❌ Netzwerk-Fehler: ' + err);
         });
     }
     
@@ -680,6 +512,8 @@ app.get('/admin', (req, res) => {
                 } else {
                     alert('❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
                 }
+            }).catch(err => {
+                alert('❌ Netzwerk-Fehler: ' + err);
             });
         }
     }
@@ -689,40 +523,25 @@ app.get('/admin', (req, res) => {
     `);
 });
 
-// Admin API Endpoints
-app.post('/admin/approve', (req, res) => {
+// ===== ADMIN API ENDPOINTS =====
+app.post('/admin/approve', async (req, res) => {
     const { phone, password } = req.body;
     
+    console.log(`🔑 Admin approval attempt for ${phone}`);
+    
     if (password !== ADMIN_PASSWORD) {
+        console.log(`❌ Wrong password attempt`);
         return res.status(401).json({ error: 'Falsches Passwort' });
     }
     
-    if (pendingUsers[phone]) {
-        userData[phone] = {
-            ...getUserData(phone),
-            ...pendingUsers[phone],
-            status: USER_STATUS.APPROVED,
-            approvedBy: 'web_admin',
-            approvalDate: new Date()
-        };
-        delete pendingUsers[phone];
-        
-        // Nutzer benachrichtigen
-        client.messages.create({
-            body: `🎉 HERZLICHEN GLÜCKWUNSCH!
-
-Ihre Anmeldung wurde genehmigt! Sie können jetzt mit dem Deutschlernen beginnen.
-
-Schreiben Sie einfach eine Nachricht und ich helfe Ihnen beim Deutschlernen.
-
-Viel Erfolg! 📚✨`,
-            from: 'whatsapp:+14155238886',
-            to: phone
-        });
-        
+    const success = await approveUserViaCommand(phone, 'web_admin');
+    
+    if (success) {
+        console.log(`✅ User ${phone} approved via web`);
         res.json({ success: true });
     } else {
-        res.status(404).json({ error: 'Nutzer nicht gefunden' });
+        console.log(`❌ User ${phone} not found in pending list`);
+        res.status(404).json({ error: 'Nutzer nicht in Warteliste gefunden' });
     }
 });
 
@@ -735,11 +554,10 @@ app.post('/admin/reject', (req, res) => {
     
     if (pendingUsers[phone]) {
         delete pendingUsers[phone];
+        console.log(`❌ User ${phone} rejected via web`);
         
         client.messages.create({
-            body: `❌ Ihre Anmeldung wurde leider nicht genehmigt.
-
-Für weitere Informationen wenden Sie sich bitte an den Administrator.`,
+            body: `❌ Ihre Anmeldung wurde leider nicht genehmigt.`,
             from: 'whatsapp:+14155238886',
             to: phone
         });
@@ -750,8 +568,7 @@ Für weitere Informationen wenden Sie sich bitte an den Administrator.`,
     }
 });
 
-// ===== SCHRITT 16: GESUNDHEITSCHECK =====
-// Eine einfache Seite um zu prüfen ob der Bot läuft
+// ===== STATUS SEITE =====
 app.get('/', (req, res) => {
     res.send(`
     <h1>🇩🇪 Deutschlehrer WhatsApp Bot</h1>
@@ -765,39 +582,35 @@ app.get('/', (req, res) => {
     <h3>🔗 Links:</h3>
     <p><a href="/admin" target="_blank">🔧 Admin Panel</a></p>
     
-    <h3>📱 WhatsApp Bot Nummer:</h3>
+    <h3>📱 WhatsApp Bot:</h3>
     <p><strong>+1 415 523 8886</strong> (Twilio Sandbox)</p>
     
-    <h3>💡 Erste Schritte:</h3>
+    <h3>💡 Test-Ablauf:</h3>
     <ol>
         <li>Sende "join [sandbox-name]" an +1 415 523 8886</li>
         <li>Schreibe "REGISTER" um dich anzumelden</li>
-        <li>Warte auf Admin-Genehmigung</li>
+        <li>Folge dem Registrierungsprozess</li>
+        <li>Gehe zu /admin und genehmige dich</li>
         <li>Beginne mit dem Deutschlernen!</li>
     </ol>
     `);
 });
 
-// ===== SCHRITT 17: SERVER STARTEN =====
+// ===== SERVER STARTEN =====
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
-    console.log(`🚀 Deutschlehrer Bot erfolgreich gestartet!`);
+    console.log(`🚀 DEUTSCHLEHRER BOT GESTARTET!`);
     console.log(`📍 Port: ${PORT}`);
-    console.log(`🌐 URL: https://deine-app.railway.app`);
-    console.log(`🔧 Admin Panel: https://deine-app.railway.app/admin`);
+    console.log(`🌐 Status: http://localhost:${PORT}`);
+    console.log(`🔧 Admin: http://localhost:${PORT}/admin`);
     console.log(`📱 WhatsApp: +1 415 523 8886`);
+    console.log(`🔑 Admin Password: ${ADMIN_PASSWORD}`);
     
-    // Training Data beim Start laden
     await loadTrainingData();
     
-    console.log(`✅ Bot ist bereit für WhatsApp Nachrichten!`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('🛑 Bot wird heruntergefahren...');
-    process.exit(0);
+    console.log(`✅ Bot bereit für WhatsApp Nachrichten!`);
+    console.log(`📋 Admin Nummern:`, ADMIN_NUMBERS);
 });
 
 module.exports = app;
