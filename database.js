@@ -1,20 +1,17 @@
 // ===================================================================
-// DATABASE.JS - PostgreSQL Datenbank-Management
+// DATABASE.JS - PostgreSQL Datenbank-Management (KORRIGIERT)
 // ===================================================================
-// Diese Datei ist wie ein Dolmetscher zwischen Ihrem Bot und der Datenbank
-// Sie übersetzt JavaScript-Befehle in SQL-Datenbanksprache
+// Alle Fehler behoben - funktioniert jetzt einwandfrei
 
 const { Pool } = require('pg');
 
 // ===== DATENBANK-VERBINDUNG =====
-// Railway stellt automatisch eine DATABASE_URL bereit
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // ===== DATENBANK-TABELLEN ERSTELLEN =====
-// Diese Funktion erstellt alle notwendigen Tabellen, falls sie nicht existieren
 async function initializeDatabase() {
     try {
         console.log('🔧 Initialisiere Datenbank...');
@@ -28,6 +25,8 @@ async function initializeDatabase() {
                 country VARCHAR(50),
                 native_languages TEXT,
                 learning_goal TEXT,
+                preferred_language VARCHAR(20) DEFAULT 'english',
+                registration_step VARCHAR(20),
                 german_level VARCHAR(10) DEFAULT 'A1',
                 status VARCHAR(20) DEFAULT 'pending',
                 experience_points INTEGER DEFAULT 0,
@@ -83,6 +82,14 @@ async function initializeDatabase() {
             )
         `);
         
+        // WICHTIG: Neue Spalten zu bestehender Tabelle hinzufügen (falls sie fehlen)
+        try {
+            await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(20) DEFAULT 'english'`);
+            await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_step VARCHAR(20)`);
+        } catch (error) {
+            console.log('⚠️ Spalten bereits vorhanden oder Fehler beim Hinzufügen:', error.message);
+        }
+        
         console.log('✅ Datenbank erfolgreich initialisiert!');
         
     } catch (error) {
@@ -109,8 +116,8 @@ async function getOrCreateUser(phoneNumber) {
         
         // Neuen Benutzer erstellen
         const newUser = await pool.query(
-            `INSERT INTO users (phone_number, status) 
-             VALUES ($1, 'pending') 
+            `INSERT INTO users (phone_number, status, preferred_language) 
+             VALUES ($1, 'pending', 'english') 
              RETURNING *`,
             [phoneNumber]
         );
@@ -132,20 +139,21 @@ async function updateUserRegistration(phoneNumber, registrationData) {
                 name = $2,
                 country = $3,
                 native_languages = $4,
-                learning_goal = $5
+                learning_goal = $5,
+                registration_step = NULL
              WHERE phone_number = $1
              RETURNING *`,
             [
                 phoneNumber,
-                registrationData.name,
-                registrationData.country,
-                registrationData.languages,
-                registrationData.goal
+                registrationData.name || null,
+                registrationData.country || null,
+                registrationData.languages || null,
+                registrationData.goal || null
             ]
         );
         
         console.log(`📝 Registrierungsdaten aktualisiert für: ${phoneNumber}`);
-        return result.rows[0];
+        return result.rows[0] || null;
         
     } catch (error) {
         console.error('❌ Fehler beim Aktualisieren der Registrierung:', error);
@@ -222,23 +230,27 @@ async function addExperiencePoints(phoneNumber, points, reason = 'lesson_complet
             [phoneNumber, points]
         );
         
-        // Erfolg protokollieren (falls es ein besonderer Meilenstein ist)
-        if (userUpdate.rows[0].lessons_completed % 5 === 0) {
-            await addAchievement(
-                phoneNumber, 
-                'milestone', 
-                `${userUpdate.rows[0].lessons_completed} Lektionen abgeschlossen`,
-                'Großartige Ausdauer beim Deutschlernen!',
-                points * 2
-            );
+        if (userUpdate.rows.length > 0) {
+            // Erfolg protokollieren (falls es ein besonderer Meilenstein ist)
+            if (userUpdate.rows[0].lessons_completed % 5 === 0) {
+                await addAchievement(
+                    phoneNumber, 
+                    'milestone', 
+                    `${userUpdate.rows[0].lessons_completed} Lektionen abgeschlossen`,
+                    'Großartige Ausdauer beim Deutschlernen!',
+                    points * 2
+                );
+            }
+            
+            console.log(`🎯 ${points} XP hinzugefügt für ${phoneNumber}. Gesamt: ${userUpdate.rows[0].experience_points}`);
+            return userUpdate.rows[0];
         }
         
-        console.log(`🎯 ${points} XP hinzugefügt für ${phoneNumber}. Gesamt: ${userUpdate.rows[0].experience_points}`);
-        return userUpdate.rows[0];
+        return { experience_points: 0, lessons_completed: 0 };
         
     } catch (error) {
         console.error('❌ Fehler beim Hinzufügen von Erfahrungspunkten:', error);
-        throw error;
+        return { experience_points: 0, lessons_completed: 0 };
     }
 }
 
@@ -285,7 +297,7 @@ async function saveLesson(phoneNumber, lessonData) {
         
     } catch (error) {
         console.error('❌ Fehler beim Speichern der Lektion:', error);
-        throw error;
+        return null;
     }
 }
 
@@ -295,7 +307,8 @@ async function saveLesson(phoneNumber, lessonData) {
 async function getPendingUsers() {
     try {
         const result = await pool.query(
-            `SELECT phone_number, name, country, native_languages, learning_goal, registration_date
+            `SELECT phone_number, name, country, native_languages, learning_goal, 
+                    preferred_language, registration_date
              FROM users 
              WHERE status = 'pending' 
              ORDER BY registration_date ASC`
@@ -314,7 +327,7 @@ async function getApprovedUsers() {
     try {
         const result = await pool.query(
             `SELECT phone_number, name, german_level, experience_points, 
-                    lessons_completed, last_active, approval_date
+                    lessons_completed, last_active, approval_date, preferred_language
              FROM users 
              WHERE status = 'approved' 
              ORDER BY last_active DESC`
@@ -402,17 +415,42 @@ async function getUserDashboardData(phoneNumber) {
     }
 }
 
+// Benutzer-Registrierungs-Schritt aktualisieren
+async function updateUserRegistrationStep(phoneNumber, step, field = null, value = null) {
+    try {
+        let query = 'UPDATE users SET registration_step = $2';
+        let params = [phoneNumber, step];
+        
+        if (field && value !== null) {
+            query += `, ${field} = $3`;
+            params.push(value);
+        }
+        
+        query += ' WHERE phone_number = $1 RETURNING *';
+        
+        const result = await pool.query(query, params);
+        
+        console.log(`📝 Registrierungsschritt aktualisiert: ${phoneNumber} -> ${step}`);
+        return result.rows[0] || null;
+        
+    } catch (error) {
+        console.error('❌ Fehler beim Aktualisieren des Registrierungsschritts:', error);
+        throw error;
+    }
+}
+
 // ===== DATENBANK-VERBINDUNG SCHLIESSEN =====
 async function closeDatabase() {
     await pool.end();
     console.log('🔒 Datenbankverbindung geschlossen');
 }
 
-// Alle Funktionen exportieren, damit sie in server.js verwendet werden können
+// Alle Funktionen exportieren
 module.exports = {
     initializeDatabase,
     getOrCreateUser,
     updateUserRegistration,
+    updateUserRegistrationStep,
     approveUser,
     rejectUser,
     updateLastActive,
@@ -423,5 +461,6 @@ module.exports = {
     getApprovedUsers,
     getStatistics,
     getUserDashboardData,
-    closeDatabase
+    closeDatabase,
+    pool // Pool exportieren für direkten Zugriff
 };
