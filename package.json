@@ -1,15 +1,19 @@
 {
   "name": "whatsapp-deutschlehrer-bot",
-  "version": "1.0.0",
-  "description": "Professioneller WhatsApp Bot für DaF/DaZ",
+  "version": "2.0.0",
+  "description": "Professioneller WhatsApp Bot für DaF/DaZ mit PostgreSQL",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "setup-db": "node setup-database.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "twilio": "^4.19.0",
-    "openai": "^4.24.0"
+    "openai": "^4.24.0",
+    "pg": "^8.11.3",
+    "pg-format": "^1.0.4"
   },
   "engines": {
     "node": "18.x"
