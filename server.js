@@ -558,4 +558,350 @@ app.get('/admin', async (req, res) => {
             </div>
             <div class="stat-card">
                 <div class="stat-number">${Math.round(stats.avg_experience)}</div>
-                <div class="stat-label">Ø Er
+                <div class="stat-label">Ø Erfahrungspunkte</div>
+            </div>
+        </div>
+        
+        <h2>⏳ Wartende Anmeldungen (${stats.pending_count})</h2>
+        ${pendingUsers.map(user => `
+        <div class="user-card pending">
+            <h3>
+                ${user.preferred_language === 'french' ? '🇫🇷' : user.preferred_language === 'arabic' ? '🇸🇦' : '🇬🇧'} 
+                📱 ${user.name || 'Unbekannt'}
+            </h3>
+            <div class="user-info">
+                <div class="info-item"><strong>Telefon:</strong> ${user.phone_number}</div>
+                <div class="info-item"><strong>Land:</strong> ${user.country || 'Unbekannt'}</div>
+                <div class="info-item"><strong>Sprachen:</strong> ${user.native_languages || 'Unbekannt'}</div>
+                <div class="info-item"><strong>Ziel:</strong> ${user.learning_goal || 'Unbekannt'}</div>
+                <div class="info-item"><strong>Registriert:</strong> ${new Date(user.registration_date).toLocaleDateString('de-DE')}</div>
+            </div>
+            <button class="approve" onclick="approveUser('${user.phone_number}')">✅ Genehmigen</button>
+            <button class="reject" onclick="rejectUser('${user.phone_number}')">❌ Ablehnen</button>
+        </div>
+        `).join('')}
+        
+        ${stats.pending_count === 0 ? '<div class="user-card"><p>🎉 Keine wartenden Anmeldungen!</p><p><em>Neue Nutzer müssen sich erst über WhatsApp registrieren.</em></p></div>' : ''}
+        
+        <h2>✅ Aktive Nutzer (${stats.approved_count})</h2>
+        ${activeUsers.map(user => `
+        <div class="user-card approved">
+            <h3>
+                ${user.preferred_language === 'french' ? '🇫🇷' : user.preferred_language === 'arabic' ? '🇸🇦' : '🇬🇧'} 
+                👤 ${user.name || 'Unbekannt'}
+            </h3>
+            <div class="user-info">
+                <div class="info-item"><strong>Telefon:</strong> ${user.phone_number}</div>
+                <div class="info-item"><strong>Level:</strong> ${user.german_level || 'A1'}</div>
+                <div class="info-item"><strong>Erfahrung:</strong> ${user.experience_points || 0} XP</div>
+                <div class="info-item"><strong>Lektionen:</strong> ${user.lessons_completed || 0}</div>
+                <div class="info-item"><strong>Letztes Login:</strong> ${new Date(user.last_active).toLocaleDateString('de-DE')}</div>
+                <div class="info-item"><strong>Genehmigt am:</strong> ${new Date(user.approval_date).toLocaleDateString('de-DE')}</div>
+            </div>
+        </div>
+        `).join('')}
+    </div>
+    
+    <script>
+    function approveUser(phone) {
+        const password = prompt('Admin-Passwort eingeben:');
+        if (!password) return;
+        
+        fetch('/admin/approve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({phone, password})
+        }).then(res => res.json()).then(data => {
+            if (data.success) {
+                alert('✅ Nutzer genehmigt!');
+                location.reload();
+            } else {
+                alert('❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            }
+        }).catch(err => {
+            alert('❌ Netzwerk-Fehler: ' + err);
+        });
+    }
+    
+    function rejectUser(phone) {
+        const password = prompt('Admin-Passwort eingeben:');
+        if (!password) return;
+        
+        if (confirm('Sind Sie sicher, dass Sie diesen Nutzer ablehnen möchten?')) {
+            fetch('/admin/reject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone, password})
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    alert('❌ Nutzer abgelehnt.');
+                    location.reload();
+                } else {
+                    alert('❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                }
+            }).catch(err => {
+                alert('❌ Netzwerk-Fehler: ' + err);
+            });
+        }
+    }
+    </script>
+</body>
+</html>
+    `);
+    } catch (error) {
+        console.error('❌ Admin Panel Fehler:', error);
+        res.status(500).send('Server Error');
+    }
+});
+
+// ===== DASHBOARD SEITE =====
+app.get('/dashboard', async (req, res) => {
+    try {
+        const stats = await getStatistics();
+        const activeUsers = await getApprovedUsers();
+        
+        res.send(`
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deutschlehrer Bot - Dashboard</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 20px; background: #f5f5f5; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { 
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px;
+            text-align: center;
+        }
+        .metrics { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px; margin-bottom: 30px;
+        }
+        .metric-card { 
+            background: white; padding: 25px; border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center;
+        }
+        .metric-number { font-size: 2.5em; font-weight: bold; color: #28a745; }
+        .metric-label { color: #666; margin-top: 5px; font-size: 1.1em; }
+        .progress-section { 
+            background: white; padding: 30px; border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px;
+        }
+        .user-progress { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px; margin-top: 20px;
+        }
+        .user-card { 
+            border: 1px solid #ddd; padding: 20px; border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .progress-bar { 
+            width: 100%; height: 20px; background: #e9ecef; border-radius: 10px;
+            margin: 10px 0;
+        }
+        .progress-fill { 
+            height: 100%; background: linear-gradient(90deg, #28a745, #20c997);
+            border-radius: 10px; transition: width 0.3s ease;
+        }
+        .nav-btn { 
+            background: #007bff; color: white; padding: 10px 20px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; margin-right: 10px;
+        }
+        .level-badge {
+            background: #6f42c1; color: white; padding: 3px 8px;
+            border-radius: 15px; font-size: 0.8em; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Deutschlehrer Bot - Dashboard</h1>
+            <p>Lernfortschritt und Statistiken</p>
+        </div>
+        
+        <a href="/admin" class="nav-btn">🔧 Admin Panel</a>
+        <a href="/dashboard" class="nav-btn">🔄 Dashboard aktualisieren</a>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-number">${stats.total_users}</div>
+                <div class="metric-label">Gesamt Nutzer</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">${stats.approved_count}</div>
+                <div class="metric-label">Aktive Lernende</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">${stats.total_lessons}</div>
+                <div class="metric-label">Lektionen Absolviert</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">${Math.round(stats.avg_experience)}</div>
+                <div class="metric-label">Ø Erfahrungspunkte</div>
+            </div>
+        </div>
+        
+        <div class="progress-section">
+            <h2>👥 Benutzer-Fortschritt</h2>
+            <div class="user-progress">
+                ${activeUsers.map(user => {
+                    const progressPercent = Math.min((user.experience_points / 500) * 100, 100);
+                    return `
+                    <div class="user-card">
+                        <h4>${user.name} <span class="level-badge">${user.german_level || 'A1'}</span></h4>
+                        <p><strong>Erfahrung:</strong> ${user.experience_points || 0} XP</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        </div>
+                        <p><strong>Lektionen:</strong> ${user.lessons_completed || 0} | <strong>Letztes Login:</strong> ${new Date(user.last_active).toLocaleDateString('de-DE')}</p>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+        `);
+    } catch (error) {
+        console.error('❌ Dashboard Fehler:', error);
+        res.status(500).send('Server Error');
+    }
+});
+
+// ===== ADMIN API ENDPOINTS =====
+app.post('/admin/approve', async (req, res) => {
+    const { phone, password } = req.body;
+    
+    console.log(`🔑 Admin approval attempt for ${phone}`);
+    
+    if (password !== ADMIN_PASSWORD) {
+        console.log(`❌ Wrong password attempt`);
+        return res.status(401).json({ error: 'Falsches Passwort' });
+    }
+    
+    try {
+        const result = await handleAdminApproval(phone, 'web_admin');
+        
+        if (result.includes('✅')) {
+            console.log(`✅ User ${phone} approved via web`);
+            res.json({ success: true });
+        } else {
+            console.log(`❌ User ${phone} approval failed`);
+            res.status(404).json({ error: 'Nutzer konnte nicht genehmigt werden' });
+        }
+    } catch (error) {
+        console.error('❌ Approval error:', error);
+        res.status(500).json({ error: 'Server-Fehler' });
+    }
+});
+
+app.post('/admin/reject', async (req, res) => {
+    const { phone, password } = req.body;
+    
+    if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Falsches Passwort' });
+    }
+    
+    try {
+        const success = await rejectUser(phone);
+        
+        if (success) {
+            console.log(`❌ User ${phone} rejected via web`);
+            
+            // Ablehnungsbenachrichtigung senden
+            await sendMessage(phone, "❌ Ihre Anmeldung wurde leider nicht genehmigt.");
+            
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Nutzer nicht gefunden' });
+        }
+    } catch (error) {
+        console.error('❌ Rejection error:', error);
+        res.status(500).json({ error: 'Server-Fehler' });
+    }
+});
+
+// ===== STATUS SEITE =====
+app.get('/', async (req, res) => {
+    try {
+        const stats = await getStatistics();
+        
+        res.send(`
+    <h1>🇩🇪 Deutschlehrer WhatsApp Bot v2.0</h1>
+    <h2>✅ Bot läuft erfolgreich!</h2>
+    <p><strong>Status:</strong> Online und bereit mit PostgreSQL</p>
+    <p><strong>Aktive Nutzer:</strong> ${stats.approved_count}</p>
+    <p><strong>Wartende Anmeldungen:</strong> ${stats.pending_count}</p>
+    <p><strong>Gesamt Lektionen:</strong> ${stats.total_lessons}</p>
+    <p><strong>Training Data:</strong> ${customTrainingData.length} Zeichen geladen</p>
+    <p><strong>Server Zeit:</strong> ${new Date().toLocaleString('de-DE')}</p>
+    
+    <h3>🆕 Neue Features v2.0:</h3>
+    <ul>
+        <li>✅ PostgreSQL Datenbank für permanente Speicherung</li>
+        <li>✅ Mehrsprachiger Start (English, Français, العربية)</li>
+        <li>✅ Gamification mit Erfahrungspunkten</li>
+        <li>✅ Verbessertes Dashboard</li>
+        <li>✅ Erfolgs-System mit Abzeichen</li>
+    </ul>
+    
+    <h3>🔗 Links:</h3>
+    <p><a href="/admin" target="_blank">🔧 Admin Panel</a></p>
+    <p><a href="/dashboard" target="_blank">📊 Dashboard</a></p>
+    
+    <h3>📱 WhatsApp Bot:</h3>
+    <p><strong>+1 415 523 8886</strong> (Twilio Sandbox)</p>
+    
+    <h3>💡 Test-Ablauf (mehrsprachig):</h3>
+    <ol>
+        <li>Sende "join [sandbox-name]" an +1 415 523 8886</li>
+        <li>Schreibe eine beliebige Nachricht</li>
+        <li>Wähle deine Sprache (1, 2 oder 3)</li>
+        <li>Folge dem Registrierungsprozess in deiner Sprache</li>
+        <li>Gehe zu /admin und genehmige dich</li>
+        <li>Beginne mit dem Deutschlernen und sammle XP!</li>
+    </ol>
+    `);
+    } catch (error) {
+        console.error('❌ Status page error:', error);
+        res.send('<h1>❌ Server Error</h1><p>Datenbank-Verbindung fehlgeschlagen</p>');
+    }
+});
+
+// ===== SERVER STARTEN =====
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, async () => {
+    console.log(`🚀 DEUTSCHLEHRER BOT v2.0 GESTARTET!`);
+    console.log(`📍 Port: ${PORT}`);
+    console.log(`🌐 Status: http://localhost:${PORT}`);
+    console.log(`🔧 Admin: http://localhost:${PORT}/admin`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
+    console.log(`📱 WhatsApp: +1 415 523 8886`);
+    console.log(`🔑 Admin Password: ${ADMIN_PASSWORD}`);
+    
+    try {
+        console.log('🔧 Initialisiere Datenbank...');
+        await initializeDatabase();
+        
+        await loadTrainingData();
+        
+        console.log(`✅ Bot v2.0 bereit für mehrsprachige WhatsApp Nachrichten!`);
+        console.log(`📋 Admin Nummern:`, ADMIN_NUMBERS);
+        console.log(`🌍 Sprachen: English, Français, العربية`);
+        console.log(`🎮 Gamification: Aktiv`);
+        
+    } catch (error) {
+        console.error('❌ STARTUP FEHLER:', error);
+        console.log('⚠️ Bot läuft ohne Datenbank (Fallback-Modus)');
+    }
+});
+
+module.exports = app;
