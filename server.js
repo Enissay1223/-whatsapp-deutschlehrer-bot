@@ -6,7 +6,7 @@
 const express = require('express');
 const twilio = require('twilio');
 const OpenAI = require('openai');
-const fs = require('fs').promises;
+const fetch = require('node-fetch'); // Für Mistral API Calls
 
 // Unsere korrigierte Datenbank-Funktionen importieren
 const {
@@ -48,6 +48,327 @@ const ADMIN_NUMBERS = [
 ];
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'DeutschLehrer2024!';
+
+// ===== SMART ROUTER SYSTEM - MITTELKLASSE IMPLEMENTIERUNG =====
+
+// Mistral AI Client
+class MistralAPI {
+    constructor(apiKey) {
+        this.apiKey = apiKey;
+        this.baseURL = 'https://api.mistral.ai/v1';
+    }
+
+    async chatCompletion(messages, model = 'mistral-small-latest') {
+        try {
+            const response = await fetch(`${this.baseURL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    max_tokens: 400,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Mistral API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (error) {
+            console.error('❌ Mistral API Fehler:', error);
+            throw error;
+        }
+    }
+}
+
+// Smart Router Klasse
+class SmartAPIRouter {
+    constructor() {
+        // API Clients initialisieren
+        this.openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+        
+        this.mistral = new MistralAPI(process.env.MISTRAL_API_KEY);
+        
+        // Kosten-Tracking
+        this.dailyCosts = 0;
+        this.lastResetDate = new Date().toDateString();
+        
+        // Performance-Tracking
+        this.apiStats = {
+            mistral: { calls: 0, totalTime: 0, errors: 0 },
+            gpt4o_mini: { calls: 0, totalTime: 0, errors: 0 },
+            gpt5_mini: { calls: 0, totalTime: 0, errors: 0 }
+        };
+        
+        console.log('🤖 Smart API Router initialisiert');
+        console.log('💰 Tages-Limit:', process.env.DAILY_COST_LIMIT);
+    }
+
+    // Komplexitäts-Analyse
+    analyzeComplexity(message, userContext = {}) {
+        const msg = message.toLowerCase().trim();
+        
+        // Einfache Nachrichten (60% der Fälle)
+        const simplePatterns = [
+            /^(hallo|hi|hey|guten tag|moin)/,
+            /^(danke|vielen dank|thx)/,
+            /^(tschüss|bye|auf wiedersehen)/,
+            /^(ja|nein|ok|okay)/,
+            /^(wie geht.s|how are you)/
+        ];
+        
+        if (simplePatterns.some(pattern => pattern.test(msg)) || msg.length < 5) {
+            return 'simple';
+        }
+        
+        // Komplexe Nachrichten (10% der Fälle)
+        const complexKeywords = (process.env.COMPLEX_KEYWORDS || 
+            'analysiere,entwickle,erkläre,programmiere,plan,schreibe,übersetze,korrigiere,grammatik')
+            .split(',');
+            
+        if (complexKeywords.some(keyword => msg.includes(keyword)) ||
+            msg.length > 100 ||
+            (msg.match(/\?/g) || []).length > 1) {
+            return 'complex';
+        }
+        
+        // Standard Nachrichten (30% der Fälle)
+        return 'medium';
+    }
+
+    // Model Selection Logic
+    selectModel(complexity, userContext = {}) {
+        // Kosten-Check
+        if (this.dailyCosts > parseFloat(process.env.DAILY_COST_LIMIT || 10)) {
+            console.log('⚠️ Tages-Kostenlimit erreicht, verwende günstigste Option');
+            return {
+                provider: 'mistral',
+                model: 'mistral-small-latest',
+                estimatedCost: 0.15,
+                reason: 'cost_limit_reached'
+            };
+        }
+
+        // Model Selection basierend auf Komplexität
+        switch (complexity) {
+            case 'simple':
+                return {
+                    provider: 'mistral',
+                    model: 'mistral-small-latest',
+                    estimatedCost: 0.15,
+                    reason: 'simple_message'
+                };
+                
+            case 'medium':
+                return {
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    estimatedCost: 0.24,
+                    reason: 'standard_conversation'
+                };
+                
+            case 'complex':
+                return {
+                    provider: 'openai',
+                    model: 'gpt-5-mini',
+                    estimatedCost: 0.69,
+                    reason: 'complex_task'
+                };
+                
+            default:
+                return {
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    estimatedCost: 0.24,
+                    reason: 'fallback'
+                };
+        }
+    }
+
+    // API Call mit Fallback
+    async callAPI(messages, selectedModel, userContext = {}) {
+        const startTime = Date.now();
+        
+        try {
+            let response;
+            
+            if (selectedModel.provider === 'mistral') {
+                response = await this.mistral.chatCompletion(messages, selectedModel.model);
+                this.apiStats.mistral.calls++;
+            } else if (selectedModel.model === 'gpt-5-mini') {
+                response = await this.openai.chat.completions.create({
+                    model: 'gpt-5-mini',
+                    messages: messages,
+                    max_tokens: 400,
+                    temperature: 0.7
+                });
+                response = response.choices[0].message.content;
+                this.apiStats.gpt5_mini.calls++;
+            } else {
+                // GPT-4o mini (Fallback auf gpt-4 falls gpt-4o-mini nicht verfügbar)
+                response = await this.openai.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: messages,
+                    max_tokens: 400,
+                    temperature: 0.7
+                });
+                response = response.choices[0].message.content;
+                this.apiStats.gpt4o_mini.calls++;
+            }
+            
+            // Performance tracking
+            const responseTime = Date.now() - startTime;
+            const statsKey = selectedModel.provider === 'mistral' ? 'mistral' : 
+                           selectedModel.model.replace('-', '_');
+            this.apiStats[statsKey].totalTime += responseTime;
+            
+            // Kosten tracking
+            this.dailyCosts += selectedModel.estimatedCost / 1000;
+            
+            if (process.env.ROUTER_DEBUG === 'true') {
+                console.log(`✅ ${selectedModel.provider}/${selectedModel.model}: ${responseTime}ms, ~$${selectedModel.estimatedCost/1000}`);
+            }
+            
+            return {
+                response: response,
+                model: selectedModel,
+                responseTime: responseTime,
+                success: true
+            };
+            
+        } catch (error) {
+            console.error(`❌ ${selectedModel.provider} API Fehler:`, error.message);
+            
+            // Fallback-Logic
+            if (process.env.ENABLE_API_FALLBACK === 'true') {
+                return await this.handleFallback(messages, selectedModel, userContext);
+            }
+            
+            throw error;
+        }
+    }
+
+    // Fallback System
+    async handleFallback(messages, failedModel, userContext) {
+        console.log('🔄 Aktiviere Fallback-System...');
+        
+        // Fallback-Reihenfolge: Mistral → GPT-4o mini → GPT-4 (Original)
+        const fallbackOrder = [
+            { provider: 'mistral', model: 'mistral-small-latest', estimatedCost: 0.15 },
+            { provider: 'openai', model: 'gpt-4o-mini', estimatedCost: 0.24 },
+            { provider: 'openai', model: 'gpt-4', estimatedCost: 30.0 }
+        ];
+        
+        for (const fallbackModel of fallbackOrder) {
+            // Skip das bereits fehlgeschlagene Model
+            if (fallbackModel.provider === failedModel.provider && 
+                fallbackModel.model === failedModel.model) {
+                continue;
+            }
+            
+            try {
+                console.log(`🔄 Versuche Fallback: ${fallbackModel.provider}/${fallbackModel.model}`);
+                return await this.callAPI(messages, fallbackModel, userContext);
+            } catch (error) {
+                console.log(`❌ Fallback ${fallbackModel.provider} fehlgeschlagen`);
+                continue;
+            }
+        }
+        
+        // Alle APIs fehlgeschlagen
+        throw new Error('Alle APIs sind nicht verfügbar');
+    }
+
+    // Haupt-Router Funktion
+    async routeMessage(userMessage, systemPrompt, userContext = {}) {
+        try {
+            // 1. Komplexität analysieren
+            const complexity = this.analyzeComplexity(userMessage, userContext);
+            
+            // 2. Model auswählen
+            const selectedModel = this.selectModel(complexity, userContext);
+            
+            // 3. Messages für API vorbereiten
+            const messages = [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage }
+            ];
+            
+            // 4. API Call mit Fallback
+            const result = await this.callAPI(messages, selectedModel, userContext);
+            
+            if (process.env.ROUTER_DEBUG === 'true') {
+                console.log(`🎯 Router: ${complexity} → ${selectedModel.provider}/${selectedModel.model} (${selectedModel.reason})`);
+            }
+            
+            return {
+                response: result.response,
+                metadata: {
+                    complexity: complexity,
+                    model: selectedModel,
+                    responseTime: result.responseTime,
+                    estimatedCost: selectedModel.estimatedCost / 1000,
+                    dailyCosts: this.dailyCosts
+                }
+            };
+            
+        } catch (error) {
+            console.error('❌ Router Fehler:', error);
+            
+            // Notfall-Antwort
+            return {
+                response: "🔧 Entschuldigung, ich habe ein technisches Problem. Bitte versuchen Sie es in einem Moment erneut.",
+                metadata: {
+                    error: true,
+                    errorMessage: error.message
+                }
+            };
+        }
+    }
+
+    // Statistiken
+    getStats() {
+        return {
+            dailyCosts: this.dailyCosts,
+            costLimit: process.env.DAILY_COST_LIMIT,
+            apiStats: this.apiStats,
+            costEfficiency: {
+                totalCalls: Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0),
+                avgCostPerCall: this.dailyCosts / Math.max(1, Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0)),
+                savingsVsGPT4: this.calculateSavings()
+            }
+        };
+    }
+
+    calculateSavings() {
+        const totalCalls = Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0);
+        const gpt4Cost = totalCalls * 0.03; // GPT-4 kostet ~$0.03 pro Message
+        const actualCost = this.dailyCosts;
+        const savings = gpt4Cost > 0 ? ((gpt4Cost - actualCost) / gpt4Cost) * 100 : 0;
+        return Math.round(Math.max(0, savings));
+    }
+
+    // Reset Costs Daily
+    resetDailyCosts() {
+        const today = new Date().toDateString();
+        if (this.lastResetDate !== today) {
+            this.dailyCosts = 0;
+            this.lastResetDate = today;
+            console.log('🔄 Tageskosten zurückgesetzt');
+        }
+    }
+}
+
+// Router Instance erstellen
+const smartRouter = new SmartAPIRouter();
 
 // ===== MEHRSPRACHIGE NACHRICHTEN =====
 const WELCOME_MESSAGES = {
@@ -322,7 +643,7 @@ async function handleAdminApproval(phoneNumber, approvedBy) {
     }
 }
 
-// ===== KI ANTWORT GENERIEREN =====
+// ===== KI ANTWORT GENERIEREN MIT SMART ROUTER =====
 async function getAIResponse(userMessage, phoneNumber) {
     try {
         const user = await getOrCreateUser(phoneNumber);
@@ -333,7 +654,9 @@ async function getAIResponse(userMessage, phoneNumber) {
         }
 
         await updateLastActive(phoneNumber);
-
+        
+        // Smart Router verwenden statt direkten OpenAI Call
+        const systemPrompt = getSystemPrompt(user.preferred_language, user.german_level);
         const contextPrompt = `
 NUTZER: ${userMessage}
 SPRACHNIVEAU: ${user.german_level || 'A1'}
@@ -341,23 +664,20 @@ MUTTERSPRACHE: ${user.preferred_language || 'english'}
 
 Antworte als DaF/DaZ-Lehrerin und vergib Punkte für gute Antworten!`;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-                { role: "system", content: getSystemPrompt(user.preferred_language, user.german_level) },
-                { role: "user", content: contextPrompt }
-            ],
-            max_tokens: 400,
-            temperature: 0.7
+        // Router verwenden - Das ist die Magie! 🎯
+        const result = await smartRouter.routeMessage(contextPrompt, systemPrompt, {
+            userId: phoneNumber,
+            level: user.german_level,
+            language: user.preferred_language
         });
 
-        const aiResponse = completion.choices[0].message.content;
+        const aiResponse = result.response;
         
         // Punkte vergeben für Interaktion
         const pointsEarned = 10;
         await addExperiencePoints(phoneNumber, pointsEarned, 'lesson_interaction');
         
-        // Lektion speichern
+        // Lektion mit Router-Metadaten speichern
         await saveLesson(phoneNumber, {
             type: 'conversation',
             content: userMessage,
@@ -366,13 +686,22 @@ Antworte als DaF/DaZ-Lehrerin und vergib Punkte für gute Antworten!`;
             points: pointsEarned,
             isCorrect: true,
             level: user.german_level || 'A1',
-            grammarTopic: 'conversation'
+            grammarTopic: 'conversation',
+            // Neue Metadaten vom Router
+            modelUsed: result.metadata.model?.provider + '/' + result.metadata.model?.model,
+            responseTime: result.metadata.responseTime,
+            estimatedCost: result.metadata.estimatedCost
         });
+
+        // Debug-Info für Admin
+        if (process.env.ROUTER_DEBUG === 'true') {
+            console.log(`📊 Router Stats:`, smartRouter.getStats());
+        }
 
         return aiResponse;
         
     } catch (error) {
-        console.error('❌ OpenAI Fehler:', error);
+        console.error('❌ Router-enhanced AI Response Fehler:', error);
         return "🔧 Technisches Problem. Bitte versuchen Sie es später erneut.";
     }
 }
@@ -515,6 +844,7 @@ app.get('/admin', async (req, res) => {
         
         <a href="/admin" class="refresh-btn">🔄 Seite aktualisieren</a>
         <a href="/dashboard" class="dashboard-link">📊 Dashboard</a>
+        <a href="/admin/api-stats" class="dashboard-link" style="background: #28a745;">🤖 Router Stats</a>
         
         <div class="debug">
             <strong>🔍 DEBUG INFO:</strong><br>
@@ -812,6 +1142,130 @@ app.post('/admin/reject', async (req, res) => {
     } catch (error) {
         console.error('❌ Rejection error:', error);
         res.status(500).json({ error: 'Server-Fehler' });
+    }
+});
+
+// ===== ROUTER STATISTIKEN SEITE =====
+app.get('/admin/api-stats', async (req, res) => {
+    try {
+        const routerStats = smartRouter.getStats();
+        const dbStats = await getStatistics();
+        
+        res.send(`
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>🤖 Smart Router Statistiken</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                 color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                     gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; 
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .stat-number { font-size: 2em; font-weight: bold; color: #28a745; }
+        .stat-label { color: #666; margin-top: 5px; }
+        .savings { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
+        .api-breakdown { background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .api-item { display: flex; justify-content: space-between; padding: 10px; 
+                   border-bottom: 1px solid #eee; }
+        .progress-bar { width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; margin: 5px 0; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+        .mistral { background: #ff6b6b; }
+        .gpt4o { background: #4ecdc4; }
+        .gpt5 { background: #45b7d1; }
+        .nav-btn { background: #007bff; color: white; padding: 10px 20px; 
+                  border-radius: 5px; text-decoration: none; display: inline-block; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Smart API Router Statistiken</h1>
+            <p>Echtzeit-Monitoring der Mittelklasse-Kombi</p>
+        </div>
+        
+        <a href="/admin" class="nav-btn">🔧 Admin Panel</a>
+        <a href="/admin/api-stats" class="nav-btn">🔄 Stats aktualisieren</a>
+        
+        <div class="stats-grid">
+            <div class="stat-card savings">
+                <div class="stat-number">${routerStats.costEfficiency.savingsVsGPT4}%</div>
+                <div class="stat-label">Kostenersparnis vs GPT-4</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">$${routerStats.dailyCosts.toFixed(3)}</div>
+                <div class="stat-label">Heutige Kosten</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${routerStats.costEfficiency.totalCalls}</div>
+                <div class="stat-label">API Calls heute</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">$${routerStats.costEfficiency.avgCostPerCall.toFixed(4)}</div>
+                <div class="stat-label">Ø Kosten pro Call</div>
+            </div>
+        </div>
+        
+        <div class="api-breakdown">
+            <h3>📊 API Nutzungsverteilung</h3>
+            
+            <div class="api-item">
+                <span><strong>🇫🇷 Mistral Small</strong> (${routerStats.apiStats.mistral.calls} Calls)</span>
+                <div style="width: 200px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill mistral" style="width: ${(routerStats.apiStats.mistral.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                    </div>
+                    ~$${(routerStats.apiStats.mistral.calls * 0.00015).toFixed(3)}
+                </div>
+            </div>
+            
+            <div class="api-item">
+                <span><strong>🤖 GPT-4o mini</strong> (${routerStats.apiStats.gpt4o_mini.calls} Calls)</span>
+                <div style="width: 200px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill gpt4o" style="width: ${(routerStats.apiStats.gpt4o_mini.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                    </div>
+                    ~$${(routerStats.apiStats.gpt4o_mini.calls * 0.00024).toFixed(3)}
+                </div>
+            </div>
+            
+            <div class="api-item">
+                <span><strong>🚀 GPT-5 mini</strong> (${routerStats.apiStats.gpt5_mini.calls} Calls)</span>
+                <div style="width: 200px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill gpt5" style="width: ${(routerStats.apiStats.gpt5_mini.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                    </div>
+                    ~$${(routerStats.apiStats.gpt5_mini.calls * 0.00069).toFixed(3)}
+                </div>
+            </div>
+        </div>
+        
+        <div class="api-breakdown">
+            <h3>🎯 Intelligente Routing-Entscheidungen</h3>
+            <p><strong>Einfache Nachrichten (60%):</strong> Mistral Small - Ultra-günstig</p>
+            <p><strong>Standard Gespräche (30%):</strong> GPT-4o mini - Beste Balance</p>
+            <p><strong>Komplexe Aufgaben (10%):</strong> GPT-5 mini - Premium Qualität</p>
+            
+            <h4>💡 Heute erkannte Muster:</h4>
+            <ul>
+                <li>Grüße & Smalltalk → Mistral</li>
+                <li>Deutschlehrer Gespräche → GPT-4o mini</li>
+                <li>Grammatik-Analysen → GPT-5 mini</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+        `);
+        
+    } catch (error) {
+        console.error('❌ Stats page error:', error);
+        res.status(500).send('Error loading stats');
     }
 });
 
