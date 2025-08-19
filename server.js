@@ -728,7 +728,7 @@ async function handleAdminApproval(phoneNumber, approvedBy) {
     }
 }
 
-// ===== KI ANTWORT GENERIEREN MIT SMART ROUTER =====
+// ===== KORRIGIERTE AI RESPONSE FUNKTION (FUNKTIONIERT!) =====
 async function getAIResponse(userMessage, phoneNumber) {
     try {
         const user = await getOrCreateUser(phoneNumber);
@@ -740,29 +740,81 @@ async function getAIResponse(userMessage, phoneNumber) {
 
         await updateLastActive(phoneNumber);
         
-        // Smart Router verwenden statt direkten OpenAI Call
-        const systemPrompt = getSystemPrompt(user.preferred_language, user.german_level);
-        const contextPrompt = `
-NUTZER: ${userMessage}
-SPRACHNIVEAU: ${user.german_level || 'A1'}
-MUTTERSPRACHE: ${user.preferred_language || 'english'}
-
-Antworte als DaF/DaZ-Lehrerin und vergib Punkte für gute Antworten!`;
-
-        // Router verwenden - Das ist die Magie! 🎯
-        const result = await smartRouter.routeMessage(contextPrompt, systemPrompt, {
+        // KORRIGIERTER User Context (Das war ein Problem!)
+        const userContext = {
             userId: phoneNumber,
-            level: user.german_level,
-            language: user.preferred_language
-        });
-
-        const aiResponse = result.response;
+            level: user.german_level || 'A1',
+            language: user.preferred_language || 'english', // Kritisch für Mehrsprachigkeit!
+            name: user.name || 'Student'
+        };
         
-        // Punkte vergeben für Interaktion
-        const pointsEarned = 10;
-        await addExperiencePoints(phoneNumber, pointsEarned, 'lesson_interaction');
+        console.log(`🎯 AI Request für ${phoneNumber}:`);
+        console.log(`   👤 User: ${userContext.name}`);
+        console.log(`   🌍 Sprache: ${userContext.language}`);
+        console.log(`   📊 Level: ${userContext.level}`);
+        console.log(`   💬 Message: "${userMessage.substring(0, 50)}..."`);
         
-        // Lektion mit Router-Metadaten speichern
+        let aiResponse;
+        let routerMetadata;
+        
+        if (smartRouter) {
+            // KORRIGIERTER Router Call - DAS WAR DER HAUPTFEHLER!
+            // Vorher: routeMessage(contextPrompt, systemPrompt, userContext) ❌
+            // Jetzt: routeMessage(userMessage, userContext) ✅
+            const result = await smartRouter.routeMessage(userMessage, userContext);
+            
+            aiResponse = result.response;
+            routerMetadata = result.metadata;
+            
+            // Debug Info
+            console.log(`📊 Router Decision:`);
+            console.log(`   🧠 Komplexität: ${routerMetadata.complexity}`);
+            console.log(`   🤖 Model: ${routerMetadata.model?.provider}/${routerMetadata.model?.model}`);
+            console.log(`   💡 Grund: ${routerMetadata.model?.reason}`);
+            console.log(`   💰 Kosten: $${routerMetadata.estimatedCost?.toFixed(4)}`);
+            console.log(`   🌍 Sprache: ${routerMetadata.language}`);
+            
+        } else {
+            // Fallback: Direkt OpenAI verwenden (falls Router nicht funktioniert)
+            console.log('⚠️ Router nicht verfügbar, verwende direkten OpenAI Call');
+            
+            const fallbackSystemPrompt = `You are a professional German teacher. 
+User language: ${userContext.language}
+User level: ${userContext.level}
+IMPORTANT: Always respond in ${userContext.language}, never in German!`;
+            
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: "system", content: fallbackSystemPrompt },
+                    { role: "user", content: userMessage }
+                ],
+                max_tokens: 400,
+                temperature: 0.7
+            });
+            
+            aiResponse = response.choices[0].message.content;
+            routerMetadata = {
+                complexity: 'fallback',
+                model: { provider: 'openai', model: 'gpt-4o-mini' },
+                estimatedCost: 0.0024,
+                language: userContext.language
+            };
+        }
+        
+        // Punkte basierend auf verwendetem Model vergeben
+        let pointsEarned = 10;
+        if (routerMetadata.model?.provider === 'mistral') {
+            pointsEarned = 10; // Mistral ist kostenlos für Sie
+        } else if (routerMetadata.model?.model === 'gpt-4o-mini') {
+            pointsEarned = 15; // Medium Qualität
+        } else if (routerMetadata.model?.model === 'gpt-4o') {
+            pointsEarned = 20; // Beste Qualität
+        }
+        
+        await addExperiencePoints(phoneNumber, pointsEarned, 'smart_router_lesson');
+        
+        // Lektion mit vollständigen Router-Metadaten speichern
         await saveLesson(phoneNumber, {
             type: 'conversation',
             content: userMessage,
@@ -772,22 +824,43 @@ Antworte als DaF/DaZ-Lehrerin und vergib Punkte für gute Antworten!`;
             isCorrect: true,
             level: user.german_level || 'A1',
             grammarTopic: 'conversation',
-            // Neue Metadaten vom Router
-            modelUsed: result.metadata.model?.provider + '/' + result.metadata.model?.model,
-            responseTime: result.metadata.responseTime,
-            estimatedCost: result.metadata.estimatedCost
+            // Router Metadaten
+            modelUsed: `${routerMetadata.model?.provider}/${routerMetadata.model?.model}`,
+            responseTime: routerMetadata.responseTime || 0,
+            estimatedCost: routerMetadata.estimatedCost || 0,
+            complexity: routerMetadata.complexity,
+            userLanguage: routerMetadata.language,
+            routerReason: routerMetadata.model?.reason
         });
 
-        // Debug-Info für Admin
-        if (process.env.ROUTER_DEBUG === 'true') {
-            console.log(`📊 Router Stats:`, smartRouter.getStats());
-        }
+        // Erfolgs-Log
+        console.log(`✅ AI Response erfolgreich generiert:`);
+        console.log(`   📝 Antwort-Länge: ${aiResponse.length} Zeichen`);
+        console.log(`   🎯 Punkte vergeben: ${pointsEarned} XP`);
+        console.log(`   🌍 Response-Sprache sollte sein: ${userContext.language}`);
 
         return aiResponse;
         
     } catch (error) {
-        console.error('❌ Router-enhanced AI Response Fehler:', error);
-        return "🔧 Technisches Problem. Bitte versuchen Sie es später erneut.";
+        console.error('❌ AI Response Fehler:', error);
+        
+        // Sprach-spezifische Fehlermeldung
+        try {
+            const user = await getOrCreateUser(phoneNumber);
+            const userLang = user.preferred_language || 'english';
+            
+            const errorMessages = {
+                english: "🔧 I'm having a technical problem with my German teaching system. Please try again in a moment.",
+                french: "🔧 J'ai un problème technique avec mon système d'enseignement allemand. Veuillez réessayer dans un moment.",
+                arabic: "🔧 لدي مشكلة تقنية مع نظام تعليم الألمانية. يرجى المحاولة مرة أخرى بعد قليل."
+            };
+            
+            return errorMessages[userLang] || errorMessages.english;
+            
+        } catch (fallbackError) {
+            console.error('❌ Auch Fallback fehlgeschlagen:', fallbackError);
+            return "🔧 Technical problem. Please try again later.";
+        }
     }
 }
 
