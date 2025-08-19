@@ -49,14 +49,14 @@ const ADMIN_NUMBERS = [
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'DeutschLehrer2024!';
 
-// ===== KORRIGIERTER SMART ROUTER (FUNKTIONIERT!) =====
+// ===== SYNTAX-KORRIGIERTER SMART ROUTER =====
 
 // Mistral API Client (mit Error Handling)
 class MistralAPI {
     constructor(apiKey) {
         this.apiKey = apiKey;
         this.baseURL = 'https://api.mistral.ai/v1';
-        this.available = !!apiKey; // Check ob API Key verfügbar ist
+        this.available = !!apiKey;
     }
 
     async chatCompletion(messages, model = 'mistral-small-latest') {
@@ -92,19 +92,17 @@ class MistralAPI {
     }
 }
 
-// KORRIGIERTER Smart Router
+// SYNTAX-KORRIGIERTER Smart Router
 class SmartAPIRouter {
     constructor() {
-        // OpenAI ist erforderlich
         if (!process.env.OPENAI_API_KEY) {
-            throw new Error('❌ OPENAI_API_KEY ist erforderlich!');
+            throw new Error('OPENAI_API_KEY ist erforderlich!');
         }
         
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         });
         
-        // Mistral ist optional
         this.mistral = process.env.MISTRAL_API_KEY ? 
             new MistralAPI(process.env.MISTRAL_API_KEY) : null;
         
@@ -118,19 +116,17 @@ class SmartAPIRouter {
         };
         
         console.log('🤖 Smart API Router initialisiert');
-        console.log(`🇫🇷 Mistral verfügbar: ${this.mistral ? '✅ Ja' : '❌ Nein'}`);
-        console.log(`🤖 OpenAI verfügbar: ✅ Ja`);
+        console.log('Mistral verfügbar:', this.mistral ? 'Ja' : 'Nein');
     }
 
-    // KORRIGIERTE Komplexitäts-Analyse
+    // Komplexitäts-Analyse
     analyzeComplexity(message, userContext = {}) {
         const msg = message.toLowerCase().trim();
         
-        console.log(`🔍 Analysiere: "${msg.substring(0, 50)}..."`);
+        console.log('Analysiere:', msg.substring(0, 50) + '...');
         
-        // Einfache Grüße und kurze Antworten (40% der Fälle)
+        // Einfache Grüße
         const simplePatterns = [
-            // Alle Sprachen
             /^(hallo|hi|hey|hello|bonjour|salut|marhaba|ahlan)/,
             /^(danke|thank|merci|shukran|thx)/,
             /^(ja|yes|oui|naam|nein|no|non|la)/,
@@ -138,65 +134,51 @@ class SmartAPIRouter {
             /^(tschüss|bye|au revoir|ma salam)/
         ];
         
-        // Sehr kurze Nachrichten
         if (msg.length < 10) {
-            console.log('📝 EINFACH: Sehr kurze Nachricht');
+            console.log('EINFACH: Sehr kurze Nachricht');
             return 'simple';
         }
         
         if (simplePatterns.some(pattern => pattern.test(msg))) {
-            console.log('📝 EINFACH: Einfacher Gruß');
+            console.log('EINFACH: Einfacher Gruß');
             return 'simple';
         }
         
-        // Komplexe Deutsch-Lern-Anfragen (20% der Fälle)
+        // Komplexe Keywords
         const complexKeywords = [
-            // Deutsch
-            'grammatik', 'erklär', 'erkläre', 'regel', 'konjugation', 'deklination',
-            'warum', 'wieso', 'unterschied', 'bedeutung', 'korrigiere',
-            
-            // Englisch  
+            'grammatik', 'erkläre', 'regel', 'konjugation', 'warum', 'unterschied',
             'grammar', 'explain', 'rule', 'conjugation', 'why', 'difference', 
-            'meaning', 'analyze', 'correct', 'translate',
-            
-            // Französisch
-            'grammaire', 'expliquer', 'règle', 'conjugaison', 'pourquoi', 
-            'différence', 'signification', 'corriger',
-            
-            // Arabisch (lateinisch)
-            'qawaid', 'sharh', 'lesh', 'farq', 'mana', 'sahih'
+            'grammaire', 'expliquer', 'règle', 'pourquoi', 'différence',
+            'qawaid', 'sharh', 'lesh', 'farq', 'mana'
         ];
         
         const hasComplexKeywords = complexKeywords.some(keyword => 
             msg.includes(keyword.toLowerCase())
         );
         
-        // Viele Fragen oder sehr lange Texte
         const questionMarks = (msg.match(/\?/g) || []).length;
         const isLong = msg.length > 150;
         
         if (hasComplexKeywords || questionMarks > 2 || isLong) {
-            console.log('📝 KOMPLEX: Grammatik-Anfrage oder lange Nachricht');
+            console.log('KOMPLEX: Grammatik-Anfrage oder lange Nachricht');
             return 'complex';
         }
         
-        // Alles andere ist Medium (Standard Deutsch-Gespräche)
-        console.log('📝 MEDIUM: Standard Deutsch-Gespräch');
+        console.log('MEDIUM: Standard Deutsch-Gespräch');
         return 'medium';
     }
 
-    // KORRIGIERTE Model Selection (Ihre gewünschte Kombi)
+    // Model Selection
     selectModel(complexity, userContext = {}) {
-        console.log(`🎯 Model Selection für Komplexität: ${complexity}`);
+        console.log('Model Selection für Komplexität:', complexity);
         
         switch (complexity) {
             case 'simple':
-                // Einfache Grüße: Mistral (wenn verfügbar), sonst GPT-4o mini
                 if (this.mistral && this.mistral.available) {
                     return {
                         provider: 'mistral',
                         model: 'mistral-small-latest',
-                        estimatedCost: 0.0, // kostenlos für Sie
+                        estimatedCost: 0.0,
                         reason: 'simple_mistral'
                     };
                 } else {
@@ -209,7 +191,6 @@ class SmartAPIRouter {
                 }
                 
             case 'medium':
-                // Standard Gespräche: GPT-4o mini
                 return {
                     provider: 'openai',
                     model: 'gpt-4o-mini',
@@ -218,7 +199,6 @@ class SmartAPIRouter {
                 };
                 
             case 'complex':
-                // Komplexe Aufgaben: GPT-4o (das Original)
                 return {
                     provider: 'openai',
                     model: 'gpt-4o',
@@ -236,22 +216,21 @@ class SmartAPIRouter {
         }
     }
 
-    // KORRIGIERTE API Call Funktion
+    // API Call
     async callAPI(messages, selectedModel, userContext = {}) {
         const startTime = Date.now();
         
         try {
             let response;
             
-            console.log(`🚀 Verwende: ${selectedModel.provider}/${selectedModel.model}`);
+            console.log('Verwende:', selectedModel.provider + '/' + selectedModel.model);
             
             if (selectedModel.provider === 'mistral') {
                 response = await this.mistral.chatCompletion(messages, selectedModel.model);
                 this.apiStats.mistral.calls++;
                 
             } else {
-                // OpenAI Call
-                const modelName = selectedModel.model; // gpt-4o-mini oder gpt-4o
+                const modelName = selectedModel.model;
                 
                 response = await this.openai.chat.completions.create({
                     model: modelName,
@@ -262,7 +241,6 @@ class SmartAPIRouter {
                 
                 response = response.choices[0].message.content;
                 
-                // Stats tracking
                 if (selectedModel.model === 'gpt-4o-mini') {
                     this.apiStats.gpt4o_mini.calls++;
                 } else {
@@ -273,7 +251,7 @@ class SmartAPIRouter {
             const responseTime = Date.now() - startTime;
             this.dailyCosts += selectedModel.estimatedCost / 1000;
             
-            console.log(`✅ Success: ${responseTime}ms, ~$${(selectedModel.estimatedCost/1000).toFixed(4)}`);
+            console.log('Success:', responseTime + 'ms, ~$' + (selectedModel.estimatedCost/1000).toFixed(4));
             
             return {
                 response: response,
@@ -283,11 +261,10 @@ class SmartAPIRouter {
             };
             
         } catch (error) {
-            console.error(`❌ ${selectedModel.provider} API Fehler:`, error);
+            console.error(selectedModel.provider + ' API Fehler:', error);
             
-            // Intelligent Fallback
             if (selectedModel.provider === 'mistral') {
-                console.log('🔄 Mistral fehlgeschlagen, fallback zu GPT-4o mini');
+                console.log('Mistral fehlgeschlagen, fallback zu GPT-4o mini');
                 const fallbackModel = {
                     provider: 'openai',
                     model: 'gpt-4o-mini',
@@ -301,33 +278,105 @@ class SmartAPIRouter {
         }
     }
 
-    // KORRIGIERTE Haupt-Router Funktion (WICHTIG!)
+    // Mehrsprachige System Prompts (OHNE problematische Template Literals)
+    getMultilingualSystemPrompt(userLanguage, userLevel) {
+        const baseTrainingData = customTrainingData || 'Standard DaF/DaZ knowledge.';
+        
+        if (userLanguage === 'french') {
+            return "Vous êtes une professeure d'allemand DaF/DaZ expérimentée et professionnelle.\n\n" +
+                   "INSTRUCTIONS CRITIQUES:\n" +
+                   "- Répondez TOUJOURS et EXCLUSIVEMENT en français\n" +
+                   "- Même si l'utilisateur écrit en allemand, répondez en français\n" +
+                   "- Expliquez la grammaire allemande en français, en comparaison avec le français\n\n" +
+                   "DONNÉES DE FORMATION:\n" + baseTrainingData + "\n\n" +
+                   "UTILISATEUR:\n" +
+                   "- Langue maternelle: Français\n" +
+                   "- Niveau d'allemand: " + userLevel + "\n\n" +
+                   "MÉTHODE D'ENSEIGNEMENT:\n" +
+                   "1. Détectez le niveau (A1-C2)\n" +
+                   "2. Corrigez une erreur principale par message\n" +
+                   "3. Expliquez les règles allemandes en français\n" +
+                   "4. Donnez des exercices concrets\n" +
+                   "5. Attribuez des points (10-20 XP)\n" +
+                   "6. Soyez patient et encourageant\n\n" +
+                   "EXEMPLE DE RÉPONSE:\n" +
+                   "Très bien ! Vous utilisez parfaitement le verbe 'haben'.\n" +
+                   "Petite correction: DER Computer (masculin en allemand)\n" +
+                   "Règle: Les mots techniques sont souvent masculins\n" +
+                   "Exercice: Dites 'der Laptop, der Drucker'\n" +
+                   "Vous gagnez 15 points XP!";
+        }
+        
+        if (userLanguage === 'arabic') {
+            return "أنت معلمة ألمانية محترفة ومتخصصة في تعليم الألمانية كلغة أجنبية (DaF/DaZ).\n\n" +
+                   "تعليمات مهمة:\n" +
+                   "- أجب دائماً وحصرياً بالعربية\n" +
+                   "- حتى لو كتب المستخدم بالألمانية، أجب بالعربية\n" +
+                   "- اشرح القواعد الألمانية بالعربية، بالمقارنة مع العربية\n\n" +
+                   "بيانات التدريب:\n" + baseTrainingData + "\n\n" +
+                   "المستخدم:\n" +
+                   "- اللغة الأم: العربية\n" +
+                   "- مستوى الألمانية: " + userLevel + "\n\n" +
+                   "طريقة التدريس:\n" +
+                   "1. حدد المستوى (A1-C2)\n" +
+                   "2. صحح خطأ واحد رئيسي في كل رسالة\n" +
+                   "3. اشرح القواعد الألمانية بالعربية\n" +
+                   "4. اعط تمارين عملية\n" +
+                   "5. امنح نقاط (10-20 نقطة خبرة)\n" +
+                   "6. كن صبوراً ومشجعاً\n\n" +
+                   "مثال على الإجابة:\n" +
+                   "ممتاز! تستخدم الفعل 'haben' بشكل مثالي.\n" +
+                   "تصحيح صغير: DER Computer (مذكر في الألمانية)\n" +
+                   "القاعدة: الكلمات التقنية عادة مذكرة\n" +
+                   "التمرين: قل 'der Laptop, der Drucker'\n" +
+                   "حصلت على 15 نقطة خبرة!";
+        }
+        
+        // Default: English
+        return "You are a professional and experienced DaF/DaZ (German as Foreign Language) teacher.\n\n" +
+               "CRITICAL INSTRUCTIONS:\n" +
+               "- ALWAYS and EXCLUSIVELY respond in English\n" +
+               "- Even if the user writes in German, respond in English\n" +
+               "- Explain German grammar in English, contrasting with English\n\n" +
+               "TRAINING DATA:\n" + baseTrainingData + "\n\n" +
+               "USER:\n" +
+               "- Native language: English\n" +
+               "- German level: " + userLevel + "\n\n" +
+               "TEACHING METHOD:\n" +
+               "1. Detect level (A1-C2)\n" +
+               "2. Correct one main error per message\n" +
+               "3. Explain German rules in English\n" +
+               "4. Give concrete exercises\n" +
+               "5. Award points (10-20 XP)\n" +
+               "6. Be patient and encouraging\n\n" +
+               "EXAMPLE RESPONSE:\n" +
+               "Excellent! You use the verb 'haben' perfectly.\n" +
+               "Small correction: DER Computer (masculine in German)\n" +
+               "Rule: Technical words are usually masculine\n" +
+               "Exercise: Say 'der Laptop, der Drucker'\n" +
+               "You earned 15 XP points!";
+    }
+
+    // Haupt-Router Funktion
     async routeMessage(userMessage, userContext = {}) {
         try {
             this.resetDailyCosts();
             
-            // 1. Komplexität analysieren
             const complexity = this.analyzeComplexity(userMessage, userContext);
-            
-            // 2. Model auswählen
             const selectedModel = this.selectModel(complexity, userContext);
-            
-            // 3. MEHRSPRACHIGEN System Prompt erstellen (DAS WAR DAS PROBLEM!)
             const systemPrompt = this.getMultilingualSystemPrompt(
                 userContext.language || 'english',
                 userContext.level || 'A1'
             );
             
-            // 4. Messages für API vorbereiten (KORRIGIERT!)
             const messages = [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
             ];
             
-            // 5. API Call
             const result = await this.callAPI(messages, selectedModel, userContext);
             
-            console.log(`🎯 Router Decision: ${complexity} → ${selectedModel.provider}/${selectedModel.model} (${selectedModel.reason})`);
+            console.log('Router Decision:', complexity + ' → ' + selectedModel.provider + '/' + selectedModel.model + ' (' + selectedModel.reason + ')');
             
             return {
                 response: result.response,
@@ -342,14 +391,13 @@ class SmartAPIRouter {
             };
             
         } catch (error) {
-            console.error('❌ Router Fehler:', error);
+            console.error('Router Fehler:', error);
             
-            // Sprach-spezifische Fehlermeldung
             const userLang = userContext.language || 'english';
             const errorMessages = {
-                english: "🔧 I'm having a technical problem. Please try again in a moment.",
-                french: "🔧 J'ai un problème technique. Veuillez réessayer dans un moment.",
-                arabic: "🔧 لدي مشكلة تقنية. يرجى المحاولة مرة أخرى بعد قليل."
+                english: "I'm having a technical problem. Please try again in a moment.",
+                french: "J'ai un problème technique. Veuillez réessayer dans un moment.",
+                arabic: "لدي مشكلة تقنية. يرجى المحاولة مرة أخرى بعد قليل."
             };
             
             return {
@@ -363,110 +411,13 @@ class SmartAPIRouter {
         }
     }
 
-    // NEUE mehrsprachige System Prompts (DAS WAR DER HAUPTFEHLER!)
-    getMultilingualSystemPrompt(userLanguage, userLevel) {
-        const baseTrainingData = customTrainingData || 'Standard DaF/DaZ knowledge.';
-        
-        switch (userLanguage) {
-            case 'french':
-                return `Vous êtes une professeure d'allemand DaF/DaZ expérimentée et professionnelle.
-
-🎯 INSTRUCTIONS CRITIQUES:
-- Répondez TOUJOURS et EXCLUSIVEMENT en français
-- Même si l'utilisateur écrit en allemand, répondez en français
-- Expliquez la grammaire allemande en français, en comparaison avec le français
-
-📚 DONNÉES DE FORMATION:
-${baseTrainingData}
-
-🌍 UTILISATEUR:
-- Langue maternelle: Français
-- Niveau d'allemand: ${userLevel}
-
-✅ MÉTHODE D'ENSEIGNEMENT:
-1. Détectez le niveau (A1-C2)
-2. Corrigez une erreur principale par message
-3. Expliquez les règles allemandes en français
-4. Donnez des exercices concrets
-5. Attribuez des points (10-20 XP)
-6. Soyez patient et encourageant
-
-EXEMPLE DE RÉPONSE:
-"Très bien ! Vous utilisez parfaitement le verbe 'haben'.
-🔍 Petite correction: DER Computer (masculin en allemand)
-📚 Règle: Les mots techniques sont souvent masculins
-💪 Exercice: Dites 'der Laptop, der Drucker'
-🎯 Vous gagnez 15 points XP!"`;
-
-            case 'arabic':
-                return `أنت معلمة ألمانية محترفة ومتخصصة في تعليم الألمانية كلغة أجنبية (DaF/DaZ).
-
-🎯 تعليمات مهمة:
-- أجب دائماً وحصرياً بالعربية
-- حتى لو كتب المستخدم بالألمانية، أجب بالعربية
-- اشرح القواعد الألمانية بالعربية، بالمقارنة مع العربية
-
-📚 بيانات التدريب:
-${baseTrainingData}
-
-🌍 المستخدم:
-- اللغة الأم: العربية
-- مستوى الألمانية: ${userLevel}
-
-✅ طريقة التدريس:
-1. حدد المستوى (A1-C2)
-2. صحح خطأ واحد رئيسي في كل رسالة
-3. اشرح القواعد الألمانية بالعربية
-4. اعط تمارين عملية
-5. امنح نقاط (10-20 نقطة خبرة)
-6. كن صبوراً ومشجعاً
-
-مثال على الإجابة:
-"ممتاز! تستخدم الفعل 'haben' بشكل مثالي.
-🔍 تصحيح صغير: DER Computer (مذكر في الألمانية)
-📚 القاعدة: الكلمات التقنية عادة مذكرة
-💪 التمرين: قل 'der Laptop, der Drucker'
-🎯 حصلت على 15 نقطة خبرة!"`;
-
-            default: // English
-                return `You are a professional and experienced DaF/DaZ (German as Foreign Language) teacher.
-
-🎯 CRITICAL INSTRUCTIONS:
-- ALWAYS and EXCLUSIVELY respond in English
-- Even if the user writes in German, respond in English
-- Explain German grammar in English, contrasting with English
-
-📚 TRAINING DATA:
-${baseTrainingData}
-
-🌍 USER:
-- Native language: English
-- German level: ${userLevel}
-
-✅ TEACHING METHOD:
-1. Detect level (A1-C2)
-2. Correct one main error per message
-3. Explain German rules in English
-4. Give concrete exercises
-5. Award points (10-20 XP)
-6. Be patient and encouraging
-
-EXAMPLE RESPONSE:
-"Excellent! You use the verb 'haben' perfectly.
-🔍 Small correction: DER Computer (masculine in German)
-📚 Rule: Technical words are usually masculine
-💪 Exercise: Say 'der Laptop, der Drucker'
-🎯 You earned 15 XP points!"`;
-        }
-    }
-
     // Reset tägliche Kosten
     resetDailyCosts() {
         const today = new Date().toDateString();
         if (this.lastResetDate !== today) {
             this.dailyCosts = 0;
             this.lastResetDate = today;
-            console.log('🔄 Tageskosten zurückgesetzt');
+            console.log('Tageskosten zurückgesetzt');
         }
     }
 
@@ -488,15 +439,15 @@ EXAMPLE RESPONSE:
     }
 }
 
-// Router Instance erstellen (mit Error Handling)
+// Router Instance erstellen
 let smartRouter;
 try {
     smartRouter = new SmartAPIRouter();
 } catch (error) {
-    console.error('❌ Smart Router konnte nicht initialisiert werden:', error);
-    // Fallback: Verwende nur OpenAI
+    console.error('Smart Router konnte nicht initialisiert werden:', error);
     smartRouter = null;
 }
+
 
 // ===== TRAINING DATA LADEN =====
 let customTrainingData = '';
