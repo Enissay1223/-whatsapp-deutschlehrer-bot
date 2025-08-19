@@ -1254,127 +1254,276 @@ app.post('/admin/reject', async (req, res) => {
     }
 });
 
-// ===== ROUTER STATISTIKEN SEITE =====
+// ===== KORRIGIERTE ROUTER STATISTIKEN SEITE =====
 app.get('/admin/api-stats', async (req, res) => {
     try {
-        const routerStats = smartRouter.getStats();
-        const dbStats = await getStatistics();
+        console.log('Router Stats aufgerufen...');
+        
+        // Sichere Statistiken abrufen mit Fallback
+        let routerStats;
+        let dbStats;
+        
+        try {
+            dbStats = await getStatistics();
+        } catch (error) {
+            console.error('DB Stats Fehler:', error);
+            dbStats = {
+                pending_count: 0,
+                approved_count: 0,
+                total_users: 0,
+                total_lessons: 0
+            };
+        }
+        
+        try {
+            if (smartRouter && typeof smartRouter.getStats === 'function') {
+                routerStats = smartRouter.getStats();
+            } else {
+                console.log('Smart Router nicht verfügbar oder getStats fehlt');
+                // Fallback Statistiken
+                routerStats = {
+                    dailyCosts: 0,
+                    apiStats: {
+                        mistral: { calls: 0, totalTime: 0, errors: 0 },
+                        gpt4o_mini: { calls: 0, totalTime: 0, errors: 0 },
+                        gpt4o: { calls: 0, totalTime: 0, errors: 0 }
+                    },
+                    costEfficiency: {
+                        totalCalls: 0,
+                        avgCostPerCall: 0,
+                        mistralPercentage: 0,
+                        gpt4oMiniPercentage: 0,
+                        gpt4oPercentage: 0
+                    }
+                };
+            }
+        } catch (error) {
+            console.error('Router Stats Fehler:', error);
+            routerStats = {
+                dailyCosts: 0,
+                apiStats: {
+                    mistral: { calls: 0, totalTime: 0, errors: 0 },
+                    gpt4o_mini: { calls: 0, totalTime: 0, errors: 0 },
+                    gpt4o: { calls: 0, totalTime: 0, errors: 0 }
+                },
+                costEfficiency: {
+                    totalCalls: 0,
+                    avgCostPerCall: 0,
+                    mistralPercentage: 0,
+                    gpt4oMiniPercentage: 0,
+                    gpt4oPercentage: 0
+                }
+            };
+        }
+        
+        console.log('Stats geladen:', {
+            routerAvailable: !!smartRouter,
+            totalCalls: routerStats.costEfficiency.totalCalls,
+            dailyCosts: routerStats.dailyCosts
+        });
         
         res.send(`
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>🤖 Smart Router Statistiken</title>
+    <title>Smart Router Statistiken</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px; background: #f5f5f5; 
+        }
         .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                 color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-                     gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 10px; 
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; 
+        }
+        .stats-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 20px; margin-bottom: 30px; 
+        }
+        .stat-card { 
+            background: white; padding: 20px; border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center;
+        }
         .stat-number { font-size: 2em; font-weight: bold; color: #28a745; }
         .stat-label { color: #666; margin-top: 5px; }
         .savings { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
-        .api-breakdown { background: white; padding: 20px; border-radius: 10px; 
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .api-item { display: flex; justify-content: space-between; padding: 10px; 
-                   border-bottom: 1px solid #eee; }
-        .progress-bar { width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; margin: 5px 0; }
+        .api-breakdown { 
+            background: white; padding: 20px; border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .api-item { 
+            display: flex; justify-content: space-between; padding: 10px; 
+            border-bottom: 1px solid #eee; align-items: center;
+        }
+        .progress-bar { 
+            width: 200px; height: 8px; background: #e9ecef; 
+            border-radius: 4px; margin: 5px 0; 
+        }
         .progress-fill { height: 100%; border-radius: 4px; }
         .mistral { background: #ff6b6b; }
         .gpt4o { background: #4ecdc4; }
-        .gpt5 { background: #45b7d1; }
-        .nav-btn { background: #007bff; color: white; padding: 10px 20px; 
-                  border-radius: 5px; text-decoration: none; display: inline-block; margin-right: 10px; }
+        .gpt4o-mini { background: #45b7d1; }
+        .nav-btn { 
+            background: #007bff; color: white; padding: 10px 20px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; margin-right: 10px; 
+        }
+        .status-indicator {
+            padding: 5px 10px; border-radius: 15px; font-size: 0.8em; 
+            font-weight: bold; margin-left: 10px;
+        }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 Smart API Router Statistiken</h1>
-            <p>Echtzeit-Monitoring der Mittelklasse-Kombi</p>
+            <h1>Smart Router Statistiken</h1>
+            <p>API Routing & Kostenübersicht</p>
+            <div class="status-indicator ${smartRouter ? 'status-ok' : 'status-warning'}">
+                Router Status: ${smartRouter ? 'Aktiv' : 'Fallback Modus'}
+            </div>
         </div>
         
-        <a href="/admin" class="nav-btn">🔧 Admin Panel</a>
-        <a href="/admin/api-stats" class="nav-btn">🔄 Stats aktualisieren</a>
+        <a href="/admin" class="nav-btn">Zurück zum Admin Panel</a>
+        <a href="/admin/api-stats" class="nav-btn">Stats aktualisieren</a>
         
         <div class="stats-grid">
             <div class="stat-card savings">
-                <div class="stat-number">${routerStats.costEfficiency.savingsVsGPT4}%</div>
-                <div class="stat-label">Kostenersparnis vs GPT-4</div>
+                <div class="stat-number">${routerStats.costEfficiency.mistralPercentage || 0}%</div>
+                <div class="stat-label">Mistral Anteil (kostenlos)</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">$${routerStats.dailyCosts.toFixed(3)}</div>
+                <div class="stat-number">$${(routerStats.dailyCosts || 0).toFixed(3)}</div>
                 <div class="stat-label">Heutige Kosten</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">${routerStats.costEfficiency.totalCalls}</div>
+                <div class="stat-number">${routerStats.costEfficiency.totalCalls || 0}</div>
                 <div class="stat-label">API Calls heute</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">$${routerStats.costEfficiency.avgCostPerCall.toFixed(4)}</div>
-                <div class="stat-label">Ø Kosten pro Call</div>
+                <div class="stat-number">$${(routerStats.costEfficiency.avgCostPerCall || 0).toFixed(4)}</div>
+                <div class="stat-label">Durchschnitt pro Call</div>
             </div>
         </div>
         
         <div class="api-breakdown">
-            <h3>📊 API Nutzungsverteilung</h3>
+            <h3>API Nutzungsverteilung</h3>
             
             <div class="api-item">
-                <span><strong>🇫🇷 Mistral Small</strong> (${routerStats.apiStats.mistral.calls} Calls)</span>
-                <div style="width: 200px;">
+                <div>
+                    <strong>Mistral Small</strong> (${routerStats.apiStats.mistral.calls || 0} Calls)
+                    <br><small>Einfache Grüße & kurze Antworten</small>
+                </div>
+                <div>
                     <div class="progress-bar">
-                        <div class="progress-fill mistral" style="width: ${(routerStats.apiStats.mistral.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                        <div class="progress-fill mistral" style="width: ${routerStats.costEfficiency.mistralPercentage || 0}%"></div>
                     </div>
-                    ~$${(routerStats.apiStats.mistral.calls * 0.00015).toFixed(3)}
+                    <small>~$${((routerStats.apiStats.mistral.calls || 0) * 0.00015).toFixed(3)} (kostenlos!)</small>
                 </div>
             </div>
             
             <div class="api-item">
-                <span><strong>🤖 GPT-4o mini</strong> (${routerStats.apiStats.gpt4o_mini.calls} Calls)</span>
-                <div style="width: 200px;">
+                <div>
+                    <strong>GPT-4o mini</strong> (${routerStats.apiStats.gpt4o_mini.calls || 0} Calls)
+                    <br><small>Standard Deutsch-Gespräche</small>
+                </div>
+                <div>
                     <div class="progress-bar">
-                        <div class="progress-fill gpt4o" style="width: ${(routerStats.apiStats.gpt4o_mini.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                        <div class="progress-fill gpt4o-mini" style="width: ${routerStats.costEfficiency.gpt4oMiniPercentage || 0}%"></div>
                     </div>
-                    ~$${(routerStats.apiStats.gpt4o_mini.calls * 0.00024).toFixed(3)}
+                    <small>~$${((routerStats.apiStats.gpt4o_mini.calls || 0) * 0.00024).toFixed(3)}</small>
                 </div>
             </div>
             
             <div class="api-item">
-                <span><strong>🚀 GPT-5 mini</strong> (${routerStats.apiStats.gpt5_mini.calls} Calls)</span>
-                <div style="width: 200px;">
+                <div>
+                    <strong>GPT-4o</strong> (${routerStats.apiStats.gpt4o.calls || 0} Calls)
+                    <br><small>Komplexe Grammatik-Erklärungen</small>
+                </div>
+                <div>
                     <div class="progress-bar">
-                        <div class="progress-fill gpt5" style="width: ${(routerStats.apiStats.gpt5_mini.calls / Math.max(1, routerStats.costEfficiency.totalCalls)) * 100}%"></div>
+                        <div class="progress-fill gpt4o" style="width: ${routerStats.costEfficiency.gpt4oPercentage || 0}%"></div>
                     </div>
-                    ~$${(routerStats.apiStats.gpt5_mini.calls * 0.00069).toFixed(3)}
+                    <small>~$${((routerStats.apiStats.gpt4o.calls || 0) * 0.025).toFixed(3)}</small>
                 </div>
             </div>
         </div>
         
         <div class="api-breakdown">
-            <h3>🎯 Intelligente Routing-Entscheidungen</h3>
-            <p><strong>Einfache Nachrichten (60%):</strong> Mistral Small - Ultra-günstig</p>
-            <p><strong>Standard Gespräche (30%):</strong> GPT-4o mini - Beste Balance</p>
-            <p><strong>Komplexe Aufgaben (10%):</strong> GPT-5 mini - Premium Qualität</p>
-            
-            <h4>💡 Heute erkannte Muster:</h4>
+            <h3>Router Konfiguration</h3>
+            <div style="font-family: monospace; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                <div><strong>Smart Router:</strong> ${smartRouter ? 'Aktiviert ✅' : 'Deaktiviert ❌'}</div>
+                <div><strong>Mistral API:</strong> ${smartRouter && smartRouter.mistral ? 'Verfügbar ✅' : 'Nicht konfiguriert ⚠️'}</div>
+                <div><strong>OpenAI API:</strong> ${process.env.OPENAI_API_KEY ? 'Verfügbar ✅' : 'Nicht konfiguriert ❌'}</div>
+                <div><strong>Debug Modus:</strong> ${process.env.ROUTER_DEBUG === 'true' ? 'Ein ✅' : 'Aus ⚠️'}</div>
+            </div>
+        </div>
+        
+        <div class="api-breakdown">
+            <h3>Intelligente Routing-Logik</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Nachrichtentyp</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Verwendetes Model</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Beispiele</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Einfach (40%)</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">🇫🇷 Mistral Small</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">"Hallo", "Danke", "Ja/Nein"</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Mittel (40%)</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">🤖 GPT-4o mini</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Deutsch-Gespräche, Übungen</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Komplex (20%)</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">🚀 GPT-4o</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Grammatik-Erklärungen, lange Fragen</td>
+                </tr>
+            </table>
+        </div>
+        
+        ${routerStats.costEfficiency.totalCalls === 0 ? `
+        <div class="api-breakdown" style="background: #fff3cd; border: 1px solid #ffeaa7;">
+            <h3>📊 Noch keine Daten</h3>
+            <p>Der Router wurde noch nicht verwendet. Testen Sie den Bot über WhatsApp um Statistiken zu generieren!</p>
+            <p><strong>Test-Nachrichten:</strong></p>
             <ul>
-                <li>Grüße & Smalltalk → Mistral</li>
-                <li>Deutschlehrer Gespräche → GPT-4o mini</li>
-                <li>Grammatik-Analysen → GPT-5 mini</li>
+                <li><strong>"Hello"</strong> → Sollte Mistral verwenden</li>
+                <li><strong>"Can you help me with German?"</strong> → Sollte GPT-4o mini verwenden</li>
+                <li><strong>"Please explain German grammar rules in detail"</strong> → Sollte GPT-4o verwenden</li>
             </ul>
         </div>
+        ` : ''}
     </div>
+    
+    <script>
+        // Auto-refresh alle 30 Sekunden wenn Calls vorhanden
+        const totalCalls = ${routerStats.costEfficiency.totalCalls || 0};
+        if (totalCalls > 0) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 30000);
+        }
+    </script>
 </body>
 </html>
         `);
         
     } catch (error) {
-        console.error('❌ Stats page error:', error);
-        res.status(500).send('Error loading stats');
+        console.error('Router Stats Seite Fehler:', error);
+        res.status(500).send(`
+            <h1>Router Stats Fehler</h1>
+            <p>Fehler beim Laden der Statistiken: ${error.message}</p>
+            <p><a href="/admin">Zurück zum Admin Panel</a></p>
+            <pre>${error.stack}</pre>
+        `);
     }
 });
 
