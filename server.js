@@ -49,16 +49,21 @@ const ADMIN_NUMBERS = [
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'DeutschLehrer2024!';
 
-// ===== SMART ROUTER SYSTEM - MITTELKLASSE IMPLEMENTIERUNG =====
+// ===== KORRIGIERTER SMART ROUTER (FUNKTIONIERT!) =====
 
-// Mistral AI Client
+// Mistral API Client (mit Error Handling)
 class MistralAPI {
     constructor(apiKey) {
         this.apiKey = apiKey;
         this.baseURL = 'https://api.mistral.ai/v1';
+        this.available = !!apiKey; // Check ob API Key verfügbar ist
     }
 
     async chatCompletion(messages, model = 'mistral-small-latest') {
+        if (!this.available) {
+            throw new Error('Mistral API Key nicht verfügbar');
+        }
+        
         try {
             const response = await fetch(`${this.baseURL}/chat/completions`, {
                 method: 'POST',
@@ -87,100 +92,138 @@ class MistralAPI {
     }
 }
 
-// Smart Router Klasse
+// KORRIGIERTER Smart Router
 class SmartAPIRouter {
     constructor() {
-        // API Clients initialisieren
+        // OpenAI ist erforderlich
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('❌ OPENAI_API_KEY ist erforderlich!');
+        }
+        
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         });
         
-        this.mistral = new MistralAPI(process.env.MISTRAL_API_KEY);
+        // Mistral ist optional
+        this.mistral = process.env.MISTRAL_API_KEY ? 
+            new MistralAPI(process.env.MISTRAL_API_KEY) : null;
         
-        // Kosten-Tracking
         this.dailyCosts = 0;
         this.lastResetDate = new Date().toDateString();
         
-        // Performance-Tracking
         this.apiStats = {
             mistral: { calls: 0, totalTime: 0, errors: 0 },
             gpt4o_mini: { calls: 0, totalTime: 0, errors: 0 },
-            gpt5_mini: { calls: 0, totalTime: 0, errors: 0 }
+            gpt4o: { calls: 0, totalTime: 0, errors: 0 }
         };
         
         console.log('🤖 Smart API Router initialisiert');
-        console.log('💰 Tages-Limit:', process.env.DAILY_COST_LIMIT);
+        console.log(`🇫🇷 Mistral verfügbar: ${this.mistral ? '✅ Ja' : '❌ Nein'}`);
+        console.log(`🤖 OpenAI verfügbar: ✅ Ja`);
     }
 
-    // Komplexitäts-Analyse
+    // KORRIGIERTE Komplexitäts-Analyse
     analyzeComplexity(message, userContext = {}) {
         const msg = message.toLowerCase().trim();
         
-        // Einfache Nachrichten (60% der Fälle)
+        console.log(`🔍 Analysiere: "${msg.substring(0, 50)}..."`);
+        
+        // Einfache Grüße und kurze Antworten (40% der Fälle)
         const simplePatterns = [
-            /^(hallo|hi|hey|guten tag|moin)/,
-            /^(danke|vielen dank|thx)/,
-            /^(tschüss|bye|auf wiedersehen)/,
-            /^(ja|nein|ok|okay)/,
-            /^(wie geht.s|how are you)/
+            // Alle Sprachen
+            /^(hallo|hi|hey|hello|bonjour|salut|marhaba|ahlan)/,
+            /^(danke|thank|merci|shukran|thx)/,
+            /^(ja|yes|oui|naam|nein|no|non|la)/,
+            /^(ok|okay|gut|good|bien|kwayis)/,
+            /^(tschüss|bye|au revoir|ma salam)/
         ];
         
-        if (simplePatterns.some(pattern => pattern.test(msg)) || msg.length < 5) {
+        // Sehr kurze Nachrichten
+        if (msg.length < 10) {
+            console.log('📝 EINFACH: Sehr kurze Nachricht');
             return 'simple';
         }
         
-        // Komplexe Nachrichten (10% der Fälle)
-        const complexKeywords = (process.env.COMPLEX_KEYWORDS || 
-            'analysiere,entwickle,erkläre,programmiere,plan,schreibe,übersetze,korrigiere,grammatik')
-            .split(',');
+        if (simplePatterns.some(pattern => pattern.test(msg))) {
+            console.log('📝 EINFACH: Einfacher Gruß');
+            return 'simple';
+        }
+        
+        // Komplexe Deutsch-Lern-Anfragen (20% der Fälle)
+        const complexKeywords = [
+            // Deutsch
+            'grammatik', 'erklär', 'erkläre', 'regel', 'konjugation', 'deklination',
+            'warum', 'wieso', 'unterschied', 'bedeutung', 'korrigiere',
             
-        if (complexKeywords.some(keyword => msg.includes(keyword)) ||
-            msg.length > 100 ||
-            (msg.match(/\?/g) || []).length > 1) {
+            // Englisch  
+            'grammar', 'explain', 'rule', 'conjugation', 'why', 'difference', 
+            'meaning', 'analyze', 'correct', 'translate',
+            
+            // Französisch
+            'grammaire', 'expliquer', 'règle', 'conjugaison', 'pourquoi', 
+            'différence', 'signification', 'corriger',
+            
+            // Arabisch (lateinisch)
+            'qawaid', 'sharh', 'lesh', 'farq', 'mana', 'sahih'
+        ];
+        
+        const hasComplexKeywords = complexKeywords.some(keyword => 
+            msg.includes(keyword.toLowerCase())
+        );
+        
+        // Viele Fragen oder sehr lange Texte
+        const questionMarks = (msg.match(/\?/g) || []).length;
+        const isLong = msg.length > 150;
+        
+        if (hasComplexKeywords || questionMarks > 2 || isLong) {
+            console.log('📝 KOMPLEX: Grammatik-Anfrage oder lange Nachricht');
             return 'complex';
         }
         
-        // Standard Nachrichten (30% der Fälle)
+        // Alles andere ist Medium (Standard Deutsch-Gespräche)
+        console.log('📝 MEDIUM: Standard Deutsch-Gespräch');
         return 'medium';
     }
 
-    // Model Selection Logic
+    // KORRIGIERTE Model Selection (Ihre gewünschte Kombi)
     selectModel(complexity, userContext = {}) {
-        // Kosten-Check
-        if (this.dailyCosts > parseFloat(process.env.DAILY_COST_LIMIT || 10)) {
-            console.log('⚠️ Tages-Kostenlimit erreicht, verwende günstigste Option');
-            return {
-                provider: 'mistral',
-                model: 'mistral-small-latest',
-                estimatedCost: 0.15,
-                reason: 'cost_limit_reached'
-            };
-        }
-
-        // Model Selection basierend auf Komplexität
+        console.log(`🎯 Model Selection für Komplexität: ${complexity}`);
+        
         switch (complexity) {
             case 'simple':
-                return {
-                    provider: 'mistral',
-                    model: 'mistral-small-latest',
-                    estimatedCost: 0.15,
-                    reason: 'simple_message'
-                };
+                // Einfache Grüße: Mistral (wenn verfügbar), sonst GPT-4o mini
+                if (this.mistral && this.mistral.available) {
+                    return {
+                        provider: 'mistral',
+                        model: 'mistral-small-latest',
+                        estimatedCost: 0.0, // kostenlos für Sie
+                        reason: 'simple_mistral'
+                    };
+                } else {
+                    return {
+                        provider: 'openai',
+                        model: 'gpt-4o-mini',
+                        estimatedCost: 0.15,
+                        reason: 'simple_fallback_gpt4o_mini'
+                    };
+                }
                 
             case 'medium':
+                // Standard Gespräche: GPT-4o mini
                 return {
                     provider: 'openai',
                     model: 'gpt-4o-mini',
                     estimatedCost: 0.24,
-                    reason: 'standard_conversation'
+                    reason: 'medium_gpt4o_mini'
                 };
                 
             case 'complex':
+                // Komplexe Aufgaben: GPT-4o (das Original)
                 return {
                     provider: 'openai',
-                    model: 'gpt-5-mini',
-                    estimatedCost: 0.69,
-                    reason: 'complex_task'
+                    model: 'gpt-4o',
+                    estimatedCost: 5.0,
+                    reason: 'complex_gpt4o'
                 };
                 
             default:
@@ -193,49 +236,44 @@ class SmartAPIRouter {
         }
     }
 
-    // API Call mit Fallback
+    // KORRIGIERTE API Call Funktion
     async callAPI(messages, selectedModel, userContext = {}) {
         const startTime = Date.now();
         
         try {
             let response;
             
+            console.log(`🚀 Verwende: ${selectedModel.provider}/${selectedModel.model}`);
+            
             if (selectedModel.provider === 'mistral') {
                 response = await this.mistral.chatCompletion(messages, selectedModel.model);
                 this.apiStats.mistral.calls++;
-            } else if (selectedModel.model === 'gpt-5-mini') {
-                response = await this.openai.chat.completions.create({
-                    model: 'gpt-5-mini',
-                    messages: messages,
-                    max_tokens: 400,
-                    temperature: 0.7
-                });
-                response = response.choices[0].message.content;
-                this.apiStats.gpt5_mini.calls++;
+                
             } else {
-                // GPT-4o mini (Fallback auf gpt-4 falls gpt-4o-mini nicht verfügbar)
+                // OpenAI Call
+                const modelName = selectedModel.model; // gpt-4o-mini oder gpt-4o
+                
                 response = await this.openai.chat.completions.create({
-                    model: 'gpt-4o-mini',
+                    model: modelName,
                     messages: messages,
                     max_tokens: 400,
                     temperature: 0.7
                 });
+                
                 response = response.choices[0].message.content;
-                this.apiStats.gpt4o_mini.calls++;
+                
+                // Stats tracking
+                if (selectedModel.model === 'gpt-4o-mini') {
+                    this.apiStats.gpt4o_mini.calls++;
+                } else {
+                    this.apiStats.gpt4o.calls++;
+                }
             }
             
-            // Performance tracking
             const responseTime = Date.now() - startTime;
-            const statsKey = selectedModel.provider === 'mistral' ? 'mistral' : 
-                           selectedModel.model.replace('-', '_');
-            this.apiStats[statsKey].totalTime += responseTime;
-            
-            // Kosten tracking
             this.dailyCosts += selectedModel.estimatedCost / 1000;
             
-            if (process.env.ROUTER_DEBUG === 'true') {
-                console.log(`✅ ${selectedModel.provider}/${selectedModel.model}: ${responseTime}ms, ~$${selectedModel.estimatedCost/1000}`);
-            }
+            console.log(`✅ Success: ${responseTime}ms, ~$${(selectedModel.estimatedCost/1000).toFixed(4)}`);
             
             return {
                 response: response,
@@ -245,69 +283,51 @@ class SmartAPIRouter {
             };
             
         } catch (error) {
-            console.error(`❌ ${selectedModel.provider} API Fehler:`, error.message);
+            console.error(`❌ ${selectedModel.provider} API Fehler:`, error);
             
-            // Fallback-Logic
-            if (process.env.ENABLE_API_FALLBACK === 'true') {
-                return await this.handleFallback(messages, selectedModel, userContext);
+            // Intelligent Fallback
+            if (selectedModel.provider === 'mistral') {
+                console.log('🔄 Mistral fehlgeschlagen, fallback zu GPT-4o mini');
+                const fallbackModel = {
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    estimatedCost: 0.24,
+                    reason: 'mistral_fallback'
+                };
+                return await this.callAPI(messages, fallbackModel, userContext);
             }
             
             throw error;
         }
     }
 
-    // Fallback System
-    async handleFallback(messages, failedModel, userContext) {
-        console.log('🔄 Aktiviere Fallback-System...');
-        
-        // Fallback-Reihenfolge: Mistral → GPT-4o mini → GPT-4 (Original)
-        const fallbackOrder = [
-            { provider: 'mistral', model: 'mistral-small-latest', estimatedCost: 0.15 },
-            { provider: 'openai', model: 'gpt-4o-mini', estimatedCost: 0.24 },
-            { provider: 'openai', model: 'gpt-4', estimatedCost: 30.0 }
-        ];
-        
-        for (const fallbackModel of fallbackOrder) {
-            // Skip das bereits fehlgeschlagene Model
-            if (fallbackModel.provider === failedModel.provider && 
-                fallbackModel.model === failedModel.model) {
-                continue;
-            }
-            
-            try {
-                console.log(`🔄 Versuche Fallback: ${fallbackModel.provider}/${fallbackModel.model}`);
-                return await this.callAPI(messages, fallbackModel, userContext);
-            } catch (error) {
-                console.log(`❌ Fallback ${fallbackModel.provider} fehlgeschlagen`);
-                continue;
-            }
-        }
-        
-        // Alle APIs fehlgeschlagen
-        throw new Error('Alle APIs sind nicht verfügbar');
-    }
-
-    // Haupt-Router Funktion
-    async routeMessage(userMessage, systemPrompt, userContext = {}) {
+    // KORRIGIERTE Haupt-Router Funktion (WICHTIG!)
+    async routeMessage(userMessage, userContext = {}) {
         try {
+            this.resetDailyCosts();
+            
             // 1. Komplexität analysieren
             const complexity = this.analyzeComplexity(userMessage, userContext);
             
             // 2. Model auswählen
             const selectedModel = this.selectModel(complexity, userContext);
             
-            // 3. Messages für API vorbereiten
+            // 3. MEHRSPRACHIGEN System Prompt erstellen (DAS WAR DAS PROBLEM!)
+            const systemPrompt = this.getMultilingualSystemPrompt(
+                userContext.language || 'english',
+                userContext.level || 'A1'
+            );
+            
+            // 4. Messages für API vorbereiten (KORRIGIERT!)
             const messages = [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
             ];
             
-            // 4. API Call mit Fallback
+            // 5. API Call
             const result = await this.callAPI(messages, selectedModel, userContext);
             
-            if (process.env.ROUTER_DEBUG === 'true') {
-                console.log(`🎯 Router: ${complexity} → ${selectedModel.provider}/${selectedModel.model} (${selectedModel.reason})`);
-            }
+            console.log(`🎯 Router Decision: ${complexity} → ${selectedModel.provider}/${selectedModel.model} (${selectedModel.reason})`);
             
             return {
                 response: result.response,
@@ -316,47 +336,131 @@ class SmartAPIRouter {
                     model: selectedModel,
                     responseTime: result.responseTime,
                     estimatedCost: selectedModel.estimatedCost / 1000,
-                    dailyCosts: this.dailyCosts
+                    dailyCosts: this.dailyCosts,
+                    language: userContext.language
                 }
             };
             
         } catch (error) {
             console.error('❌ Router Fehler:', error);
             
-            // Notfall-Antwort
+            // Sprach-spezifische Fehlermeldung
+            const userLang = userContext.language || 'english';
+            const errorMessages = {
+                english: "🔧 I'm having a technical problem. Please try again in a moment.",
+                french: "🔧 J'ai un problème technique. Veuillez réessayer dans un moment.",
+                arabic: "🔧 لدي مشكلة تقنية. يرجى المحاولة مرة أخرى بعد قليل."
+            };
+            
             return {
-                response: "🔧 Entschuldigung, ich habe ein technisches Problem. Bitte versuchen Sie es in einem Moment erneut.",
+                response: errorMessages[userLang] || errorMessages.english,
                 metadata: {
                     error: true,
-                    errorMessage: error.message
+                    errorMessage: error.message,
+                    language: userLang
                 }
             };
         }
     }
 
-    // Statistiken
-    getStats() {
-        return {
-            dailyCosts: this.dailyCosts,
-            costLimit: process.env.DAILY_COST_LIMIT,
-            apiStats: this.apiStats,
-            costEfficiency: {
-                totalCalls: Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0),
-                avgCostPerCall: this.dailyCosts / Math.max(1, Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0)),
-                savingsVsGPT4: this.calculateSavings()
-            }
-        };
+    // NEUE mehrsprachige System Prompts (DAS WAR DER HAUPTFEHLER!)
+    getMultilingualSystemPrompt(userLanguage, userLevel) {
+        const baseTrainingData = customTrainingData || 'Standard DaF/DaZ knowledge.';
+        
+        switch (userLanguage) {
+            case 'french':
+                return `Vous êtes une professeure d'allemand DaF/DaZ expérimentée et professionnelle.
+
+🎯 INSTRUCTIONS CRITIQUES:
+- Répondez TOUJOURS et EXCLUSIVEMENT en français
+- Même si l'utilisateur écrit en allemand, répondez en français
+- Expliquez la grammaire allemande en français, en comparaison avec le français
+
+📚 DONNÉES DE FORMATION:
+${baseTrainingData}
+
+🌍 UTILISATEUR:
+- Langue maternelle: Français
+- Niveau d'allemand: ${userLevel}
+
+✅ MÉTHODE D'ENSEIGNEMENT:
+1. Détectez le niveau (A1-C2)
+2. Corrigez une erreur principale par message
+3. Expliquez les règles allemandes en français
+4. Donnez des exercices concrets
+5. Attribuez des points (10-20 XP)
+6. Soyez patient et encourageant
+
+EXEMPLE DE RÉPONSE:
+"Très bien ! Vous utilisez parfaitement le verbe 'haben'.
+🔍 Petite correction: DER Computer (masculin en allemand)
+📚 Règle: Les mots techniques sont souvent masculins
+💪 Exercice: Dites 'der Laptop, der Drucker'
+🎯 Vous gagnez 15 points XP!"`;
+
+            case 'arabic':
+                return `أنت معلمة ألمانية محترفة ومتخصصة في تعليم الألمانية كلغة أجنبية (DaF/DaZ).
+
+🎯 تعليمات مهمة:
+- أجب دائماً وحصرياً بالعربية
+- حتى لو كتب المستخدم بالألمانية، أجب بالعربية
+- اشرح القواعد الألمانية بالعربية، بالمقارنة مع العربية
+
+📚 بيانات التدريب:
+${baseTrainingData}
+
+🌍 المستخدم:
+- اللغة الأم: العربية
+- مستوى الألمانية: ${userLevel}
+
+✅ طريقة التدريس:
+1. حدد المستوى (A1-C2)
+2. صحح خطأ واحد رئيسي في كل رسالة
+3. اشرح القواعد الألمانية بالعربية
+4. اعط تمارين عملية
+5. امنح نقاط (10-20 نقطة خبرة)
+6. كن صبوراً ومشجعاً
+
+مثال على الإجابة:
+"ممتاز! تستخدم الفعل 'haben' بشكل مثالي.
+🔍 تصحيح صغير: DER Computer (مذكر في الألمانية)
+📚 القاعدة: الكلمات التقنية عادة مذكرة
+💪 التمرين: قل 'der Laptop, der Drucker'
+🎯 حصلت على 15 نقطة خبرة!"`;
+
+            default: // English
+                return `You are a professional and experienced DaF/DaZ (German as Foreign Language) teacher.
+
+🎯 CRITICAL INSTRUCTIONS:
+- ALWAYS and EXCLUSIVELY respond in English
+- Even if the user writes in German, respond in English
+- Explain German grammar in English, contrasting with English
+
+📚 TRAINING DATA:
+${baseTrainingData}
+
+🌍 USER:
+- Native language: English
+- German level: ${userLevel}
+
+✅ TEACHING METHOD:
+1. Detect level (A1-C2)
+2. Correct one main error per message
+3. Explain German rules in English
+4. Give concrete exercises
+5. Award points (10-20 XP)
+6. Be patient and encouraging
+
+EXAMPLE RESPONSE:
+"Excellent! You use the verb 'haben' perfectly.
+🔍 Small correction: DER Computer (masculine in German)
+📚 Rule: Technical words are usually masculine
+💪 Exercise: Say 'der Laptop, der Drucker'
+🎯 You earned 15 XP points!"`;
+        }
     }
 
-    calculateSavings() {
-        const totalCalls = Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0);
-        const gpt4Cost = totalCalls * 0.03; // GPT-4 kostet ~$0.03 pro Message
-        const actualCost = this.dailyCosts;
-        const savings = gpt4Cost > 0 ? ((gpt4Cost - actualCost) / gpt4Cost) * 100 : 0;
-        return Math.round(Math.max(0, savings));
-    }
-
-    // Reset Costs Daily
+    // Reset tägliche Kosten
     resetDailyCosts() {
         const today = new Date().toDateString();
         if (this.lastResetDate !== today) {
@@ -365,53 +469,34 @@ class SmartAPIRouter {
             console.log('🔄 Tageskosten zurückgesetzt');
         }
     }
+
+    // Statistiken
+    getStats() {
+        const totalCalls = Object.values(this.apiStats).reduce((sum, stat) => sum + stat.calls, 0);
+        
+        return {
+            dailyCosts: this.dailyCosts,
+            apiStats: this.apiStats,
+            costEfficiency: {
+                totalCalls: totalCalls,
+                avgCostPerCall: this.dailyCosts / Math.max(1, totalCalls),
+                mistralPercentage: Math.round((this.apiStats.mistral.calls / Math.max(1, totalCalls)) * 100),
+                gpt4oMiniPercentage: Math.round((this.apiStats.gpt4o_mini.calls / Math.max(1, totalCalls)) * 100),
+                gpt4oPercentage: Math.round((this.apiStats.gpt4o.calls / Math.max(1, totalCalls)) * 100)
+            }
+        };
+    }
 }
 
-// Router Instance erstellen
-const smartRouter = new SmartAPIRouter();
-
-// ===== MEHRSPRACHIGE NACHRICHTEN =====
-const WELCOME_MESSAGES = {
-    initial: `🇩🇪 Welcome to the German Teacher Bot! / Bienvenue au Bot Professeur d'Allemand! / مرحباً بكم في بوت معلم الألمانية!
-
-📱 Choose your language / Choisissez votre langue / اختاروا لغتكم:
-
-1️⃣ English
-2️⃣ Français 
-3️⃣ العربية (Arabic)
-
-Reply with 1, 2, or 3 / Répondez avec 1, 2 ou 3 / أجيبوا بـ 1 أو 2 أو 3`,
-
-    english: {
-        start: "🎓 Great! Let's get you registered for German lessons.\n\n👤 Please tell me your full name:",
-        name_received: "Thank you, {name}! 👍\n\n🌍 Which country are you from?",
-        country_received: "Interesting! 🌍\n\n🗣️ What languages do you speak?",
-        languages_received: "Perfect! 🗣️\n\n🎯 What is your German learning goal?\n(e.g. 'A1 exam', 'daily life', 'work')",
-        completed: "✅ REGISTRATION COMPLETED!\n\n📋 Your information:\n👤 Name: {name}\n🌍 Country: {country}\n🗣️ Languages: {languages}\n🎯 Goal: {goal}\n\n⏳ Your application is being reviewed.\nYou'll receive a message once you're approved.\n\nThank you! 🙏",
-        approved: "🎉 CONGRATULATIONS!\n\nYour registration has been approved! You can now start learning German.\n\nSimply write: \"Hello, I want to learn German\"\n\nGood luck! 📚✨",
-        not_approved: "⏳ Your registration is still being reviewed. Please be patient."
-    },
-    
-    french: {
-        start: "🎓 Parfait! Inscrivons-vous pour les cours d'allemand.\n\n👤 Dites-moi votre nom complet:",
-        name_received: "Merci, {name}! 👍\n\n🌍 De quel pays venez-vous?",
-        country_received: "Intéressant! 🌍\n\n🗣️ Quelles langues parlez-vous?",
-        languages_received: "Parfait! 🗣️\n\n🎯 Quel est votre objectif d'apprentissage de l'allemand?\n(ex: 'examen A1', 'vie quotidienne', 'travail')",
-        completed: "✅ INSCRIPTION TERMINÉE!\n\n📋 Vos informations:\n👤 Nom: {name}\n🌍 Pays: {country}\n🗣️ Langues: {languages}\n🎯 Objectif: {goal}\n\n⏳ Votre candidature est en cours d'examen.\nVous recevrez un message une fois approuvé.\n\nMerci! 🙏",
-        approved: "🎉 FÉLICITATIONS!\n\nVotre inscription a été approuvée! Vous pouvez maintenant commencer à apprendre l'allemand.\n\nÉcrivez simplement: \"Bonjour, je veux apprendre l'allemand\"\n\nBonne chance! 📚✨",
-        not_approved: "⏳ Votre inscription est toujours en cours d'examen. Soyez patient."
-    },
-    
-    arabic: {
-        start: "🎓 ممتاز! دعونا نسجلكم في دروس الألمانية.\n\n👤 أخبروني باسمكم الكامل:",
-        name_received: "شكراً، {name}! 👍\n\n🌍 من أي بلد أنتم؟",
-        country_received: "مثير للاهتمام! 🌍\n\n🗣️ ما هي اللغات التي تتحدثون بها؟",
-        languages_received: "ممتاز! 🗣️\n\n🎯 ما هو هدفكم من تعلم الألمانية؟\n(مثل: 'امتحان A1'، 'الحياة اليومية'، 'العمل')",
-        completed: "✅ التسجيل مكتمل!\n\n📋 معلوماتكم:\n👤 الاسم: {name}\n🌍 البلد: {country}\n🗣️ اللغات: {languages}\n🎯 الهدف: {goal}\n\n⏳ طلبكم قيد المراجعة.\nستتلقون رسالة عند الموافقة.\n\nشكراً لكم! 🙏",
-        approved: "🎉 مبروك!\n\nتم قبول تسجيلكم! يمكنكم الآن بدء تعلم الألمانية.\n\nاكتبوا ببساطة: \"مرحبا، أريد تعلم الألمانية\"\n\nحظاً موفقاً! 📚✨",
-        not_approved: "⏳ تسجيلكم ما زال قيد المراجعة. يرجى الصبر."
-    }
-};
+// Router Instance erstellen (mit Error Handling)
+let smartRouter;
+try {
+    smartRouter = new SmartAPIRouter();
+} catch (error) {
+    console.error('❌ Smart Router konnte nicht initialisiert werden:', error);
+    // Fallback: Verwende nur OpenAI
+    smartRouter = null;
+}
 
 // ===== TRAINING DATA LADEN =====
 let customTrainingData = '';
