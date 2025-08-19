@@ -513,7 +513,6 @@ async function loadTrainingData() {
 }
 
 // ===== DEUTSCHLEHRER SYSTEM PROMPT =====
-const getSystemPrompt = (userLanguage = 'english', userLevel = 'A1') => `Du bist eine hochqualifizierte DaF/DaZ-Lehrerin.
 
 📚 TRAINING DATA:
 ${customTrainingData}
