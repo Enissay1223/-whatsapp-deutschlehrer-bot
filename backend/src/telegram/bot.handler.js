@@ -402,4 +402,4 @@ export async function processUpdate(update) {
 }
 
 // Export bot instance for external use
-export { bot, sendMessage, createInlineKeyboard };
+export { bot, sendMessage, createInlineKeyboard, createReplyKeyboard };
