@@ -351,26 +351,41 @@ async function handleCallbackQuery(callbackQuery) {
           display_name: 'User',
           registration_source: 'telegram',
           registration_step: 0,
-          registration_completed: false
+          registration_completed: false,
+          preferred_language: language
         });
         console.log('✅ Emergency user created:', newUser.id);
 
-        await updateUserProfile(newUser.id, {
-          preferred_language: language
-        });
-        await handleRegistrationStep(chatId, telegramId, null, newUser, 1);
+        // Update to step 1 and ask for name
+        await updateRegistrationStep(newUser.id, 1);
+
+        // Send localized name question
+        const nameMessages = {
+          en: "Great! What's your name?",
+          fr: "Super ! Comment t'appelles-tu ?",
+          ar: "رائع! ما اسمك؟"
+        };
+        await sendMessage(chatId, nameMessages[language] || nameMessages.en);
+        console.log('✅ Name question sent for new user');
         return;
       }
 
+      // Update language preference and move to step 1
       await updateUserProfile(user.id, {
         preferred_language: language
       });
+      await updateRegistrationStep(user.id, 1);
       console.log('✅ Language updated to:', language);
 
-      // Continue to next registration step
-      console.log('📝 Starting registration step 1');
-      await handleRegistrationStep(chatId, telegramId, null, user, 1);
-      console.log('✅ Registration step 1 completed');
+      // Send localized name question directly (no validation needed for button click)
+      const nameMessages = {
+        en: "Great! What's your name?",
+        fr: "Super ! Comment t'appelles-tu ?",
+        ar: "رائع! ما اسمك؟"
+      };
+
+      await sendMessage(chatId, nameMessages[language] || nameMessages.en);
+      console.log('✅ Name question sent, waiting for user input');
 
     } else if (data.startsWith('level_')) {
       // Level selection during registration
