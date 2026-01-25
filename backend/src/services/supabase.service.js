@@ -85,10 +85,16 @@ export async function updateUserProfile(userId, updates) {
  * Update registration step
  */
 export async function updateRegistrationStep(userId, step, stepData = {}) {
-  const { data: currentProfile } = await getUserProfile(userId);
+  // Get current profile
+  const currentProfile = await getUserProfile(userId);
+
+  if (!currentProfile) {
+    console.error('❌ User not found in updateRegistrationStep:', userId);
+    throw new Error('User not found');
+  }
 
   const registrationData = {
-    ...currentProfile.registration_data,
+    ...(currentProfile.registration_data || {}),
     ...stepData
   };
 
