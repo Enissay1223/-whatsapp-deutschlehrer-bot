@@ -81,12 +81,16 @@ async function handleStartCommand(msg) {
   const telegramId = msg.from.id;
   const username = msg.from.username || msg.from.first_name;
 
+  console.log('🚀 /start command from:', { telegramId, username });
+
   try {
     // Check if user exists
-    const existingUser = await getUserByTelegramId(telegramId);
+    let existingUser = await getUserByTelegramId(telegramId);
+    console.log('👤 Existing user:', existingUser ? 'Found' : 'Not found');
 
     if (existingUser && existingUser.registration_completed) {
       // User already registered - welcome back
+      console.log('✅ User already registered, showing welcome back message');
       await sendMessage(
         chatId,
         `Willkommen zurück, ${existingUser.display_name}! 🇩🇪\n\n` +
@@ -101,7 +105,21 @@ async function handleStartCommand(msg) {
         ])
       );
     } else {
-      // New user or incomplete registration - start registration
+      // New user - create profile FIRST!
+      if (!existingUser) {
+        console.log('📝 Creating new user profile...');
+        existingUser = await createUserProfile({
+          telegram_id: telegramId,
+          display_name: username || 'User',
+          registration_source: 'telegram',
+          registration_step: 0,
+          registration_completed: false
+        });
+        console.log('✅ User created with ID:', existingUser.id);
+      }
+
+      // Show language selection
+      console.log('🌍 Showing language selection');
       await sendMessage(
         chatId,
         `*Willkommen beim Deutschlehrer Bot!* 🇩🇪\n\n` +
@@ -119,7 +137,7 @@ async function handleStartCommand(msg) {
       );
     }
   } catch (error) {
-    console.error('Error in /start command:', error);
+    console.error('❌ Error in /start command:', error);
     await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche es später erneut.');
   }
 }
@@ -324,6 +342,25 @@ async function handleCallbackQuery(callbackQuery) {
       const language = data.replace('lang_', '');
       const user = await getUserByTelegramId(telegramId);
       console.log('👤 User found:', user ? user.id : 'null');
+
+      if (!user) {
+        console.error('❌ User not found! Creating now...');
+        // Safety: Create user if somehow missing
+        const newUser = await createUserProfile({
+          telegram_id: telegramId,
+          display_name: 'User',
+          registration_source: 'telegram',
+          registration_step: 0,
+          registration_completed: false
+        });
+        console.log('✅ Emergency user created:', newUser.id);
+
+        await updateUserProfile(newUser.id, {
+          preferred_language: language
+        });
+        await handleRegistrationStep(chatId, telegramId, null, newUser, 1);
+        return;
+      }
 
       await updateUserProfile(user.id, {
         preferred_language: language
