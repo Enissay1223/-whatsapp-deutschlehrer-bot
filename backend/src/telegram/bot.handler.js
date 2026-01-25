@@ -399,7 +399,16 @@ async function handleCallbackQuery(callbackQuery) {
     }
 
   } catch (error) {
-    console.error('Error handling callback query:', error);
+    console.error('❌ Error handling callback query:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
+
+    // Try to send error message to user
+    try {
+      await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche /start erneut.');
+    } catch (sendError) {
+      console.error('Could not send error message:', sendError);
+    }
   }
 }
 
@@ -412,12 +421,16 @@ async function handleCallbackQuery(callbackQuery) {
  */
 export async function processUpdate(update) {
   try {
+    console.log('🔔 Webhook update received:', JSON.stringify(update).substring(0, 200));
+
     if (update.message) {
       const msg = update.message;
+      console.log('💬 Processing message:', msg.text);
 
       // Handle commands
       if (msg.text?.startsWith('/')) {
         const command = msg.text.split(' ')[0].substring(1);
+        console.log('⚡ Command detected:', command);
 
         switch (command) {
           case 'start':
@@ -440,11 +453,14 @@ export async function processUpdate(update) {
         await handleTextMessage(msg);
       }
     } else if (update.callback_query) {
+      console.log('🔘 Processing callback_query');
       // Handle button clicks
       await handleCallbackQuery(update.callback_query);
+    } else {
+      console.log('⚠️ Unknown update type:', Object.keys(update));
     }
   } catch (error) {
-    console.error('Error processing update:', error);
+    console.error('❌ Error processing update:', error);
     throw error;
   }
 }

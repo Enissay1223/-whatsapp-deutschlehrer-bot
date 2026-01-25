@@ -158,8 +158,17 @@ export async function handleRegistrationStep(chatId, telegramId, userInput, user
         await sendMessage(chatId, "Let's start over. Type /start to begin!");
     }
   } catch (error) {
-    console.error('Error in registration step:', error);
-    await sendMessage(chatId, 'An error occurred. Please try again with /start');
+    console.error('❌ Error in registration step:', error);
+    console.error('Error message:', error.message);
+    console.error('Stack trace:', error.stack);
+    console.error('Current step:', currentStep);
+    console.error('User ID:', user?.id);
+
+    try {
+      await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche /start erneut.');
+    } catch (sendError) {
+      console.error('Could not send error message:', sendError);
+    }
   }
 }
 
