@@ -31,12 +31,15 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
  */
 async function sendMessage(chatId, text, options = {}) {
   try {
-    return await bot.sendMessage(chatId, text, {
+    console.log('📤 Sending message to', chatId, ':', text.substring(0, 50) + '...');
+    const result = await bot.sendMessage(chatId, text, {
       parse_mode: 'Markdown',
       ...options
     });
+    console.log('✅ Message sent successfully');
+    return result;
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('❌ Error sending message:', error);
     throw error;
   }
 }
@@ -307,22 +310,30 @@ async function handleCallbackQuery(callbackQuery) {
   const data = callbackQuery.data;
   const telegramId = callbackQuery.from.id;
 
+  console.log('📱 Callback received:', { chatId, data, telegramId });
+
   try {
     // Acknowledge callback
     await bot.answerCallbackQuery(callbackQuery.id);
+    console.log('✅ Callback acknowledged');
 
     // Handle different callbacks
     if (data.startsWith('lang_')) {
       // Language selection
+      console.log('🌍 Language selection:', data);
       const language = data.replace('lang_', '');
       const user = await getUserByTelegramId(telegramId);
+      console.log('👤 User found:', user ? user.id : 'null');
 
       await updateUserProfile(user.id, {
         preferred_language: language
       });
+      console.log('✅ Language updated to:', language);
 
       // Continue to next registration step
+      console.log('📝 Starting registration step 1');
       await handleRegistrationStep(chatId, telegramId, null, user, 1);
+      console.log('✅ Registration step 1 completed');
 
     } else if (data.startsWith('level_')) {
       // Level selection during registration
