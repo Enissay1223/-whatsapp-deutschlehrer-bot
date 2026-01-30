@@ -197,7 +197,11 @@ export async function getRecommendedLessons(query, userProfile, topK = 3) {
     return lessonsWithScores;
 
   } catch (error) {
-    console.error('❌ Error getting recommended lessons:', error);
+    if (error.message?.includes('404') || error.name === 'PineconeNotFoundError') {
+      console.log('⚠️ Pinecone index not found. Run "npm run setup:pinecone" to create it.');
+    } else {
+      console.error('❌ Error getting recommended lessons:', error);
+    }
     return [];
   }
 }

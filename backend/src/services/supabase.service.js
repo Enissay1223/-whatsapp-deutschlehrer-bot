@@ -109,7 +109,11 @@ export async function updateRegistrationStep(userId, step, stepData = {}) {
  * Increment message count (for rate limiting)
  */
 export async function incrementMessageCount(userId) {
-  const { data: user } = await getUserProfile(userId);
+  const user = await getUserProfile(userId);
+
+  if (!user) {
+    throw new Error('User not found');
+  }
 
   // Reset if new day
   const today = new Date().toISOString().split('T')[0];

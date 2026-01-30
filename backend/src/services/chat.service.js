@@ -53,13 +53,18 @@ export async function handleChatMessage(userId, telegramId, messageText) {
     // Generate lesson recommendations if there were corrections
     let recommendedLessons = [];
     if (aiResult.hasCorrection) {
-      console.log('🔍 Generating lesson recommendations...');
+      try {
+        console.log('🔍 Generating lesson recommendations...');
 
-      const lessonQuery = await generateLessonQuery(messageText, aiResult.response, userProfile);
+        const lessonQuery = await generateLessonQuery(messageText, aiResult.response, userProfile);
 
-      if (lessonQuery) {
-        recommendedLessons = await getRecommendedLessons(lessonQuery, userProfile, 2);
-        console.log(`📚 Found ${recommendedLessons.length} recommended lessons`);
+        if (lessonQuery) {
+          recommendedLessons = await getRecommendedLessons(lessonQuery, userProfile, 2);
+          console.log(`📚 Found ${recommendedLessons.length} recommended lessons`);
+        }
+      } catch (lessonError) {
+        console.log('⚠️ Could not fetch lesson recommendations (Pinecone not setup?):', lessonError.message);
+        // Continue without recommendations - not critical for chat to work
       }
     }
 
