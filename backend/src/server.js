@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { processUpdate } from './telegram/bot.handler.js';
+import setupRoutes from './routes/setup.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -117,8 +118,11 @@ app.post('/telegram-webhook', async (req, res) => {
 });
 
 // ============================================================================
-// API ROUTES (Placeholder - will implement later)
+// API ROUTES
 // ============================================================================
+
+// Setup routes (temporary - for initial setup only)
+app.use('/api/setup', setupRoutes);
 
 // Auth routes
 app.use('/api/auth', (req, res) => {
