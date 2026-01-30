@@ -16,6 +16,10 @@ import {
   handleLevelSelection,
   handlePlanSelection
 } from '../services/registration.service.js';
+import {
+  handleChatMessage,
+  formatLessonRecommendations
+} from '../services/chat.service.js';
 
 dotenv.config();
 
@@ -306,13 +310,52 @@ async function handleTextMessage(msg) {
       }
     }
 
-    // TODO: Handle actual chat message with AI
-    // For now, just echo
-    await sendMessage(
-      chatId,
-      `Du hast geschrieben: "${text}"\n\n` +
-      `(AI Antwort kommt in der nächsten Phase!)`
-    );
+    // Handle chat with AI
+    console.log('🤖 Processing German message with AI...');
+
+    try {
+      const result = await handleChatMessage(user.id, telegramId, text);
+
+      // Send AI response
+      let responseText = result.aiResponse;
+
+      // Add lesson recommendations if any
+      if (result.recommendedLessons && result.recommendedLessons.length > 0) {
+        responseText += formatLessonRecommendations(
+          result.recommendedLessons,
+          user.preferred_language
+        );
+      }
+
+      // Add XP notification
+      if (result.xpAwarded > 0) {
+        const xpMessages = {
+          en: `\n\n✨ +${result.xpAwarded} XP`,
+          fr: `\n\n✨ +${result.xpAwarded} XP`,
+          ar: `\n\n✨ +${result.xpAwarded} XP`
+        };
+        responseText += xpMessages[user.preferred_language] || xpMessages.en;
+      }
+
+      await sendMessage(chatId, responseText);
+
+      console.log('✅ AI response sent with XP:', result.xpAwarded);
+
+    } catch (aiError) {
+      console.error('❌ AI processing error:', aiError);
+
+      // Fallback message in user's language
+      const errorMessages = {
+        en: 'Sorry, I had trouble processing that. Please try again!',
+        fr: 'Désolé, j\'ai eu du mal à traiter cela. Réessayez !',
+        ar: 'عذراً، واجهت مشكلة في المعالجة. حاول مرة أخرى!'
+      };
+
+      await sendMessage(
+        chatId,
+        errorMessages[user.preferred_language] || errorMessages.en
+      );
+    }
 
   } catch (error) {
     console.error('Error handling text message:', error);

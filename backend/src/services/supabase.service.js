@@ -128,6 +128,13 @@ export async function incrementMessageCount(userId) {
 }
 
 /**
+ * Increment daily message count (alias for consistency)
+ */
+export async function incrementDailyMessageCount(userId) {
+  return incrementMessageCount(userId);
+}
+
+/**
  * Check if user has reached message limit
  */
 export async function hasReachedMessageLimit(userId) {
@@ -299,6 +306,23 @@ export async function saveConversation(conversationData) {
   const { data, error } = await supabase
     .from('conversations')
     .insert([conversationData])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Save conversation message (alias for consistency)
+ */
+export async function saveConversationMessage(messageData) {
+  const { data, error } = await supabase
+    .from('conversation_history')
+    .insert([{
+      ...messageData,
+      created_at: new Date().toISOString()
+    }])
     .select()
     .single();
 
