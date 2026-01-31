@@ -32,41 +32,15 @@ Das bedeutet, die Tabelle `admin_users` wurde erfolgreich erstellt.
 
 ---
 
-## 🔑 Schritt 2: JWT Secret Key erstellen (1 Minute)
+## ✅ Schritt 2: JWT Secret - Bereits vorhanden!
 
-JWT (JSON Web Token) wird verwendet, um Admin-Logins sicher zu machen. Du brauchst einen zufälligen Secret Key.
+**Gute Nachricht:** Die `JWT_SECRET` Variable existiert bereits in deinem Railway Projekt!
 
-### Generiere einen zufälligen Key:
-
-Öffne deinen Browser und gehe zu: https://www.uuidgenerator.net/
-
-Kopiere die generierte UUID (z.B. `a1b2c3d4-e5f6-7890-abcd-ef1234567890`)
+Der Admin-Code verwendet dieselbe `JWT_SECRET` Variable wie der Rest deines Bots. Du musst nichts hinzufügen.
 
 ---
 
-## 🚂 Schritt 3: JWT Secret zu Railway hinzufügen (2 Minuten)
-
-### Was zu tun ist:
-
-1. Öffne **Railway** in deinem Browser: https://railway.app
-2. Wähle dein Projekt aus (Deutschlehrer Bot)
-3. Klicke auf dein Backend-Service
-4. Klicke oben auf den Tab **"Variables"**
-5. Klicke auf **"+ New Variable"**
-6. Füge hinzu:
-   ```
-   Name:  JWT_SECRET
-   Value: [Dein generierter UUID von Schritt 2]
-   ```
-7. Klicke auf **"Add"**
-
-### Erwartetes Ergebnis:
-
-Railway wird automatisch neu deployen. Warte bis der Deploy abgeschlossen ist (grüner Haken).
-
----
-
-## 👤 Schritt 4: Ersten Admin-Benutzer erstellen (3 Minuten)
+## 👤 Schritt 3: Ersten Admin-Benutzer erstellen (3 Minuten)
 
 Jetzt erstellst du deinen ersten Admin-Account, mit dem du dich später einloggen kannst.
 
@@ -128,7 +102,7 @@ curl -X POST https://[DEINE-RAILWAY-URL]/api/admin/setup \
 
 ---
 
-## 🧪 Schritt 5: Admin Login testen (2 Minuten)
+## 🧪 Schritt 4: Admin Login testen (2 Minuten)
 
 Jetzt testen wir, ob der Login funktioniert.
 
@@ -178,7 +152,7 @@ curl -X POST https://[DEINE-RAILWAY-URL]/api/admin/login \
 
 ---
 
-## 🔒 Schritt 6: Geschützte API testen (Optional, 2 Minuten)
+## 🔒 Schritt 5: Geschützte API testen (Optional, 2 Minuten)
 
 Teste, ob die Authentifizierung funktioniert.
 
@@ -190,9 +164,9 @@ Teste, ob die Authentifizierung funktioniert.
 4. Füge hinzu:
    ```
    Key:   Authorization
-   Value: Bearer [DEIN-TOKEN-AUS-SCHRITT-5]
+   Value: Bearer [DEIN-TOKEN-AUS-SCHRITT-4]
    ```
-   (Ersetze `[DEIN-TOKEN-AUS-SCHRITT-5]` mit dem kompletten Token, inkl. "Bearer " davor)
+   (Ersetze `[DEIN-TOKEN-AUS-SCHRITT-4]` mit dem kompletten Token, inkl. "Bearer " davor)
 5. Klicke auf **"Send"**
 
 ### Mit curl:
@@ -217,7 +191,7 @@ curl -X GET https://[DEINE-RAILWAY-URL]/api/admin/me \
 
 ---
 
-## 📊 Schritt 7: Dashboard Statistiken abrufen (Optional, 1 Minute)
+## 📊 Schritt 6: Dashboard Statistiken abrufen (Optional, 1 Minute)
 
 Teste die Dashboard-Statistiken API.
 
