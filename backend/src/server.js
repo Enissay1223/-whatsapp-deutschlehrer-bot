@@ -11,6 +11,8 @@ import rateLimit from 'express-rate-limit';
 import { processUpdate } from './telegram/bot.handler.js';
 import setupRoutes from './routes/setup.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import lessonRoutes from './routes/lesson.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -128,15 +130,11 @@ app.use('/api/setup', setupRoutes);
 // Payment routes (Stripe)
 app.use('/api/payments', paymentRoutes);
 
-// Auth routes
-app.use('/api/auth', (req, res) => {
-  res.json({ message: 'Auth routes - coming soon' });
-});
+// Admin routes
+app.use('/api/admin', adminRoutes);
 
 // Lesson routes
-app.use('/api/lessons', (req, res) => {
-  res.json({ message: 'Lesson routes - coming soon' });
-});
+app.use('/api/lessons', lessonRoutes);
 
 // Chat routes
 app.use('/api/chat', (req, res) => {
