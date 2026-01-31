@@ -134,19 +134,9 @@ app.use('/api/admin', adminRoutes);
 // Lesson routes
 app.use('/api/lessons', lessonRoutes);
 
-// Chat routes
+// Chat routes (placeholder)
 app.use('/api/chat', (req, res) => {
   res.json({ message: 'Chat routes - coming soon' });
-});
-
-// Payment routes
-app.use('/api/payments', (req, res) => {
-  res.json({ message: 'Payment routes - coming soon' });
-});
-
-// Admin routes
-app.use('/api/admin', (req, res) => {
-  res.json({ message: 'Admin routes - coming soon' });
 });
 
 // ============================================================================
