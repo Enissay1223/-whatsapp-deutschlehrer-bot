@@ -31,7 +31,12 @@ app.use(helmet());
 // CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://deutschlehrer.app', 'https://admin.deutschlehrer.app']
+    ? [
+        'https://deutschlehrer.app',
+        'https://admin.deutschlehrer.app',
+        'https://whatsapp-deutschlehrer-qjx32hir9.vercel.app',  // Vercel deployment
+        /\.vercel\.app$/  // Allow all vercel.app subdomains
+      ]
     : '*',
   credentials: true
 }));
