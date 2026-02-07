@@ -16,6 +16,10 @@ import {
   handleLevelSelection,
   handlePlanSelection
 } from '../services/registration.service.js';
+import {
+  handleChatMessage,
+  formatLessonRecommendations
+} from '../services/chat.service.js';
 
 dotenv.config();
 
@@ -31,12 +35,15 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
  */
 async function sendMessage(chatId, text, options = {}) {
   try {
-    return await bot.sendMessage(chatId, text, {
+    console.log('📤 Sending message to', chatId, ':', text.substring(0, 50) + '...');
+    const result = await bot.sendMessage(chatId, text, {
       parse_mode: 'Markdown',
       ...options
     });
+    console.log('✅ Message sent successfully');
+    return result;
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('❌ Error sending message:', error);
     throw error;
   }
 }
@@ -78,12 +85,16 @@ async function handleStartCommand(msg) {
   const telegramId = msg.from.id;
   const username = msg.from.username || msg.from.first_name;
 
+  console.log('🚀 /start command from:', { telegramId, username });
+
   try {
     // Check if user exists
-    const existingUser = await getUserByTelegramId(telegramId);
+    let existingUser = await getUserByTelegramId(telegramId);
+    console.log('👤 Existing user:', existingUser ? 'Found' : 'Not found');
 
     if (existingUser && existingUser.registration_completed) {
       // User already registered - welcome back
+      console.log('✅ User already registered, showing welcome back message');
       await sendMessage(
         chatId,
         `Willkommen zurück, ${existingUser.display_name}! 🇩🇪\n\n` +
@@ -98,7 +109,21 @@ async function handleStartCommand(msg) {
         ])
       );
     } else {
-      // New user or incomplete registration - start registration
+      // New user - create profile FIRST!
+      if (!existingUser) {
+        console.log('📝 Creating new user profile...');
+        existingUser = await createUserProfile({
+          telegram_id: telegramId,
+          display_name: username || 'User',
+          registration_source: 'telegram',
+          registration_step: 0,
+          registration_completed: false
+        });
+        console.log('✅ User created with ID:', existingUser.id);
+      }
+
+      // Show language selection
+      console.log('🌍 Showing language selection');
       await sendMessage(
         chatId,
         `*Willkommen beim Deutschlehrer Bot!* 🇩🇪\n\n` +
@@ -116,7 +141,7 @@ async function handleStartCommand(msg) {
       );
     }
   } catch (error) {
-    console.error('Error in /start command:', error);
+    console.error('❌ Error in /start command:', error);
     await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche es später erneut.');
   }
 }
@@ -285,13 +310,52 @@ async function handleTextMessage(msg) {
       }
     }
 
-    // TODO: Handle actual chat message with AI
-    // For now, just echo
-    await sendMessage(
-      chatId,
-      `Du hast geschrieben: "${text}"\n\n` +
-      `(AI Antwort kommt in der nächsten Phase!)`
-    );
+    // Handle chat with AI
+    console.log('🤖 Processing German message with AI...');
+
+    try {
+      const result = await handleChatMessage(user.id, telegramId, text);
+
+      // Send AI response
+      let responseText = result.aiResponse;
+
+      // Add lesson recommendations if any
+      if (result.recommendedLessons && result.recommendedLessons.length > 0) {
+        responseText += formatLessonRecommendations(
+          result.recommendedLessons,
+          user.preferred_language
+        );
+      }
+
+      // Add XP notification
+      if (result.xpAwarded > 0) {
+        const xpMessages = {
+          en: `\n\n✨ +${result.xpAwarded} XP`,
+          fr: `\n\n✨ +${result.xpAwarded} XP`,
+          ar: `\n\n✨ +${result.xpAwarded} XP`
+        };
+        responseText += xpMessages[user.preferred_language] || xpMessages.en;
+      }
+
+      await sendMessage(chatId, responseText);
+
+      console.log('✅ AI response sent with XP:', result.xpAwarded);
+
+    } catch (aiError) {
+      console.error('❌ AI processing error:', aiError);
+
+      // Fallback message in user's language
+      const errorMessages = {
+        en: 'Sorry, I had trouble processing that. Please try again!',
+        fr: 'Désolé, j\'ai eu du mal à traiter cela. Réessayez !',
+        ar: 'عذراً، واجهت مشكلة في المعالجة. حاول مرة أخرى!'
+      };
+
+      await sendMessage(
+        chatId,
+        errorMessages[user.preferred_language] || errorMessages.en
+      );
+    }
 
   } catch (error) {
     console.error('Error handling text message:', error);
@@ -307,22 +371,64 @@ async function handleCallbackQuery(callbackQuery) {
   const data = callbackQuery.data;
   const telegramId = callbackQuery.from.id;
 
+  console.log('📱 Callback received:', { chatId, data, telegramId });
+
   try {
     // Acknowledge callback
     await bot.answerCallbackQuery(callbackQuery.id);
+    console.log('✅ Callback acknowledged');
 
     // Handle different callbacks
     if (data.startsWith('lang_')) {
       // Language selection
+      console.log('🌍 Language selection:', data);
       const language = data.replace('lang_', '');
       const user = await getUserByTelegramId(telegramId);
+      console.log('👤 User found:', user ? user.id : 'null');
 
+      if (!user) {
+        console.error('❌ User not found! Creating now...');
+        // Safety: Create user if somehow missing
+        const newUser = await createUserProfile({
+          telegram_id: telegramId,
+          display_name: 'User',
+          registration_source: 'telegram',
+          registration_step: 0,
+          registration_completed: false,
+          preferred_language: language
+        });
+        console.log('✅ Emergency user created:', newUser.id);
+
+        // Update to step 1 and ask for name
+        await updateRegistrationStep(newUser.id, 1);
+
+        // Send localized name question
+        const nameMessages = {
+          en: "Great! What's your name?",
+          fr: "Super ! Comment t'appelles-tu ?",
+          ar: "رائع! ما اسمك؟"
+        };
+        await sendMessage(chatId, nameMessages[language] || nameMessages.en);
+        console.log('✅ Name question sent for new user');
+        return;
+      }
+
+      // Update language preference and move to step 1
       await updateUserProfile(user.id, {
         preferred_language: language
       });
+      await updateRegistrationStep(user.id, 1);
+      console.log('✅ Language updated to:', language);
 
-      // Continue to next registration step
-      await handleRegistrationStep(chatId, telegramId, null, user, 1);
+      // Send localized name question directly (no validation needed for button click)
+      const nameMessages = {
+        en: "Great! What's your name?",
+        fr: "Super ! Comment t'appelles-tu ?",
+        ar: "رائع! ما اسمك؟"
+      };
+
+      await sendMessage(chatId, nameMessages[language] || nameMessages.en);
+      console.log('✅ Name question sent, waiting for user input');
 
     } else if (data.startsWith('level_')) {
       // Level selection during registration
@@ -351,7 +457,16 @@ async function handleCallbackQuery(callbackQuery) {
     }
 
   } catch (error) {
-    console.error('Error handling callback query:', error);
+    console.error('❌ Error handling callback query:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
+
+    // Try to send error message to user
+    try {
+      await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche /start erneut.');
+    } catch (sendError) {
+      console.error('Could not send error message:', sendError);
+    }
   }
 }
 
@@ -364,12 +479,16 @@ async function handleCallbackQuery(callbackQuery) {
  */
 export async function processUpdate(update) {
   try {
+    console.log('🔔 Webhook update received:', JSON.stringify(update).substring(0, 200));
+
     if (update.message) {
       const msg = update.message;
+      console.log('💬 Processing message:', msg.text);
 
       // Handle commands
       if (msg.text?.startsWith('/')) {
         const command = msg.text.split(' ')[0].substring(1);
+        console.log('⚡ Command detected:', command);
 
         switch (command) {
           case 'start':
@@ -392,14 +511,17 @@ export async function processUpdate(update) {
         await handleTextMessage(msg);
       }
     } else if (update.callback_query) {
+      console.log('🔘 Processing callback_query');
       // Handle button clicks
       await handleCallbackQuery(update.callback_query);
+    } else {
+      console.log('⚠️ Unknown update type:', Object.keys(update));
     }
   } catch (error) {
-    console.error('Error processing update:', error);
+    console.error('❌ Error processing update:', error);
     throw error;
   }
 }
 
 // Export bot instance for external use
-export { bot, sendMessage, createInlineKeyboard };
+export { bot, sendMessage, createInlineKeyboard, createReplyKeyboard };

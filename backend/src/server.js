@@ -9,6 +9,10 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { processUpdate } from './telegram/bot.handler.js';
+import setupRoutes from './routes/setup.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import lessonRoutes from './routes/lesson.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,12 +28,10 @@ const PORT = process.env.PORT || 3000;
 // Security headers
 app.use(helmet());
 
-// CORS
+// CORS - Allow all origins for now (can restrict later)
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://deutschlehrer.app', 'https://admin.deutschlehrer.app']
-    : '*',
-  credentials: true
+  origin: '*',
+  credentials: false  // Changed to false when origin is '*'
 }));
 
 // Body parsing
@@ -117,32 +119,24 @@ app.post('/telegram-webhook', async (req, res) => {
 });
 
 // ============================================================================
-// API ROUTES (Placeholder - will implement later)
+// API ROUTES
 // ============================================================================
 
-// Auth routes
-app.use('/api/auth', (req, res) => {
-  res.json({ message: 'Auth routes - coming soon' });
-});
+// Setup routes (temporary - for initial setup only)
+app.use('/api/setup', setupRoutes);
 
-// Lesson routes
-app.use('/api/lessons', (req, res) => {
-  res.json({ message: 'Lesson routes - coming soon' });
-});
-
-// Chat routes
-app.use('/api/chat', (req, res) => {
-  res.json({ message: 'Chat routes - coming soon' });
-});
-
-// Payment routes
-app.use('/api/payments', (req, res) => {
-  res.json({ message: 'Payment routes - coming soon' });
-});
+// Payment routes (Stripe)
+app.use('/api/payments', paymentRoutes);
 
 // Admin routes
-app.use('/api/admin', (req, res) => {
-  res.json({ message: 'Admin routes - coming soon' });
+app.use('/api/admin', adminRoutes);
+
+// Lesson routes
+app.use('/api/lessons', lessonRoutes);
+
+// Chat routes (placeholder)
+app.use('/api/chat', (req, res) => {
+  res.json({ message: 'Chat routes - coming soon' });
 });
 
 // ============================================================================

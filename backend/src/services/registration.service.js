@@ -72,12 +72,21 @@ export async function handleRegistrationStep(chatId, telegramId, userInput, user
   const lang = user.preferred_language || 'en';
   const msg = getMessages(lang);
 
+  console.log('📝 Registration step handler called:', {
+    currentStep,
+    forceStep,
+    lang,
+    userId: user?.id
+  });
+
   try {
     switch (currentStep) {
       case 0:
+        console.log('Step 0: Moving to step 1 (name)');
         // Language already selected in bot.handler, move to step 1
         await askForName(chatId, lang, msg);
         await updateRegistrationStep(user.id, 1);
+        console.log('✅ Step 0 completed');
         break;
 
       case 1:
@@ -149,8 +158,17 @@ export async function handleRegistrationStep(chatId, telegramId, userInput, user
         await sendMessage(chatId, "Let's start over. Type /start to begin!");
     }
   } catch (error) {
-    console.error('Error in registration step:', error);
-    await sendMessage(chatId, 'An error occurred. Please try again with /start');
+    console.error('❌ Error in registration step:', error);
+    console.error('Error message:', error.message);
+    console.error('Stack trace:', error.stack);
+    console.error('Current step:', currentStep);
+    console.error('User ID:', user?.id);
+
+    try {
+      await sendMessage(chatId, 'Ein Fehler ist aufgetreten. Bitte versuche /start erneut.');
+    } catch (sendError) {
+      console.error('Could not send error message:', sendError);
+    }
   }
 }
 
@@ -159,7 +177,9 @@ export async function handleRegistrationStep(chatId, telegramId, userInput, user
 // ============================================================================
 
 async function askForName(chatId, lang, msg) {
+  console.log('💬 Asking for name in language:', lang);
   await sendMessage(chatId, msg.askName);
+  console.log('✅ Name question sent');
 }
 
 async function askForNativeLanguage(chatId, lang, msg) {

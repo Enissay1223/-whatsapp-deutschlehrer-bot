@@ -85,10 +85,16 @@ export async function updateUserProfile(userId, updates) {
  * Update registration step
  */
 export async function updateRegistrationStep(userId, step, stepData = {}) {
-  const { data: currentProfile } = await getUserProfile(userId);
+  // Get current profile
+  const currentProfile = await getUserProfile(userId);
+
+  if (!currentProfile) {
+    console.error('❌ User not found in updateRegistrationStep:', userId);
+    throw new Error('User not found');
+  }
 
   const registrationData = {
-    ...currentProfile.registration_data,
+    ...(currentProfile.registration_data || {}),
     ...stepData
   };
 
@@ -103,7 +109,11 @@ export async function updateRegistrationStep(userId, step, stepData = {}) {
  * Increment message count (for rate limiting)
  */
 export async function incrementMessageCount(userId) {
-  const { data: user } = await getUserProfile(userId);
+  const user = await getUserProfile(userId);
+
+  if (!user) {
+    throw new Error('User not found');
+  }
 
   // Reset if new day
   const today = new Date().toISOString().split('T')[0];
@@ -119,6 +129,13 @@ export async function incrementMessageCount(userId) {
   return updateUserProfile(userId, {
     daily_message_count: user.daily_message_count + 1
   });
+}
+
+/**
+ * Increment daily message count (alias for consistency)
+ */
+export async function incrementDailyMessageCount(userId) {
+  return incrementMessageCount(userId);
 }
 
 /**
@@ -293,6 +310,23 @@ export async function saveConversation(conversationData) {
   const { data, error } = await supabase
     .from('conversations')
     .insert([conversationData])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Save conversation message (alias for consistency)
+ */
+export async function saveConversationMessage(messageData) {
+  const { data, error } = await supabase
+    .from('conversation_history')
+    .insert([{
+      ...messageData,
+      created_at: new Date().toISOString()
+    }])
     .select()
     .single();
 
