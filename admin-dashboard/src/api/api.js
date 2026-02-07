@@ -3,12 +3,16 @@ import axios from 'axios';
 // API Base URL - uses environment variable or defaults to production
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://whatsapp-deutschlehrer-bot-production-3d6e.up.railway.app';
 
+console.log('API Base URL:', API_BASE_URL);
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: false, // Important: set to false for cross-origin with wildcard
 });
 
 // Request interceptor to add auth token
@@ -29,11 +33,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect to login on 401, NOT on network errors
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      window.location.href = '/login';
+      // Don't redirect if we're already on login page or doing a login request
+      const isLoginRequest = error.config?.url?.includes('/login');
+      if (!isLoginRequest) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

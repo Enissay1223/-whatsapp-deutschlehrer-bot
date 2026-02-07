@@ -39,9 +39,20 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
+
+      let errorMessage = 'Login fehlgeschlagen';
+
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Verbindung zum Server fehlgeschlagen. Bitte pruefen Sie ob das Backend laeuft und die URL korrekt ist.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Falsche E-Mail oder Passwort';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
       return {
         success: false,
-        error: error.response?.data?.error || 'Login fehlgeschlagen'
+        error: errorMessage
       };
     }
   };

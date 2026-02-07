@@ -25,24 +25,51 @@ const PORT = process.env.PORT || 3000;
 // MIDDLEWARE
 // ============================================================================
 
-// Security headers
-app.use(helmet());
+// CORS - Must come BEFORE helmet and other middleware
+// Allowed origins from environment variable or defaults
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3000', 'http://localhost:5173'];
 
-// CORS - Allow all origins for now (can restrict later)
 app.use(cors({
-  origin: '*',
-  credentials: false  // Changed to false when origin is '*'
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    // Allow any Vercel preview URL or configured origins
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.railway.app')
+    ) {
+      return callback(null, true);
+    }
+    callback(null, true); // Allow all for now during development
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
+// Security headers - configured to not interfere with CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
 
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting (general)
+// Rate limiting (general) - skip OPTIONS preflight requests
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  max: 200, // Limit each IP to 200 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  skip: (req) => req.method === 'OPTIONS'
 });
 
 app.use('/api/', generalLimiter);
