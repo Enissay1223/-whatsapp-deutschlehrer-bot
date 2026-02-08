@@ -41,11 +41,15 @@ export default function OnboardingPage() {
   };
 
   const saveProfile = async (tier: string) => {
-    if (!user) return;
+    if (!user) {
+      setError('Du bist nicht eingeloggt. Bitte melde dich zuerst an.');
+      return;
+    }
     setSaving(true);
     setError('');
-    const { error: err } = await supabase.from('user_profiles').upsert({
-      id: user.id,
+
+    const profileData = {
+      auth_user_id: user.id,
       display_name: name,
       native_language: nativeLang,
       german_level: level,
@@ -54,20 +58,45 @@ export default function OnboardingPage() {
       registration_source: 'webapp',
       preferred_language: 'de',
       daily_message_limit: tier === 'premium' ? 999999 : 10,
-    });
-    if (err) { setError(err.message); setSaving(false); return; }
-    await refreshProfile();
-    if (tier === 'premium') {
-      try {
-        const { url } = await paymentsAPI.createCheckout();
-        window.location.href = url;
-      } catch {
-        router.push('/dashboard');
+      registration_completed: true,
+    };
+
+    try {
+      // Try upsert first (works if RLS policies allow it)
+      const { error: upsertErr } = await supabase.from('user_profiles').upsert(profileData);
+
+      if (upsertErr) {
+        console.error('Supabase upsert error:', upsertErr);
+        // Fallback: try insert if upsert failed
+        const { error: insertErr } = await supabase.from('user_profiles').insert(profileData);
+        if (insertErr) {
+          console.error('Supabase insert error:', insertErr);
+          setError(`Profil konnte nicht gespeichert werden: ${insertErr.message}`);
+          setSaving(false);
+          return;
+        }
       }
-    } else {
+
+      await refreshProfile();
+
+      if (tier === 'premium') {
+        try {
+          const { url } = await paymentsAPI.createCheckout();
+          if (url) {
+            window.location.href = url;
+            return;
+          }
+        } catch (e) {
+          console.error('Checkout error:', e);
+        }
+      }
       router.push('/dashboard');
+    } catch (e) {
+      console.error('Save profile error:', e);
+      setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   return (
