@@ -13,6 +13,7 @@ import setupRoutes from './routes/setup.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import lessonRoutes from './routes/lesson.routes.js';
+import webappRoutes from './routes/webapp.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -161,10 +162,8 @@ app.use('/api/admin', adminRoutes);
 // Lesson routes
 app.use('/api/lessons', lessonRoutes);
 
-// Chat routes (placeholder)
-app.use('/api/chat', (req, res) => {
-  res.json({ message: 'Chat routes - coming soon' });
-});
+// Webapp routes (user-facing API for Next.js frontend)
+app.use('/api/webapp', webappRoutes);
 
 // ============================================================================
 // ERROR HANDLING
