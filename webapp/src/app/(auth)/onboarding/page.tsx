@@ -62,19 +62,34 @@ export default function OnboardingPage() {
     };
 
     try {
-      // Try upsert first (works if RLS policies allow it)
-      const { error: upsertErr } = await supabase.from('user_profiles').upsert(profileData);
+      // First check if profile already exists
+      const { data: existing } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
 
-      if (upsertErr) {
-        console.error('Supabase upsert error:', upsertErr);
-        // Fallback: try insert if upsert failed
-        const { error: insertErr } = await supabase.from('user_profiles').insert(profileData);
-        if (insertErr) {
-          console.error('Supabase insert error:', insertErr);
-          setError(`Profil konnte nicht gespeichert werden: ${insertErr.message}`);
-          setSaving(false);
-          return;
-        }
+      let saveError;
+      if (existing) {
+        // Update existing profile
+        const { error: updateErr } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('auth_user_id', user.id);
+        saveError = updateErr;
+      } else {
+        // Insert new profile
+        const { error: insertErr } = await supabase
+          .from('user_profiles')
+          .insert(profileData);
+        saveError = insertErr;
+      }
+
+      if (saveError) {
+        console.error('Supabase save error:', saveError);
+        setError(`Profil konnte nicht gespeichert werden: ${saveError.message}`);
+        setSaving(false);
+        return;
       }
 
       await refreshProfile();
