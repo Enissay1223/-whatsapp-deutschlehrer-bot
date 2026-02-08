@@ -35,7 +35,7 @@ export default function SettingsPage() {
       german_level: level,
       learning_goal: goal,
       updated_at: new Date().toISOString(),
-    }).eq('id', user.id);
+    }).eq('auth_user_id', user.id);
     if (err) { setError(err.message); } else { setSaved(true); await refreshProfile(); }
     setSaving(false);
     if (!err) setTimeout(() => setSaved(false), 3000);

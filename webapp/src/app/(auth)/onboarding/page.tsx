@@ -49,7 +49,7 @@ export default function OnboardingPage() {
     setError('');
 
     const profileData = {
-      id: user.id,
+      auth_user_id: user.id,
       display_name: name,
       native_language: nativeLang,
       german_level: level,
@@ -58,6 +58,7 @@ export default function OnboardingPage() {
       registration_source: 'webapp',
       preferred_language: 'de',
       daily_message_limit: tier === 'premium' ? 999999 : 10,
+      registration_completed: true,
     };
 
     try {
