@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "brand": "Sprachlehrer",
+    "features": "Features",
+    "pricing": "Preise",
+    "faq": "FAQ",
+    "login": "Anmelden",
+    "register": "Kostenlos starten"
+  },
+  "hero": {
+    "title": "Lerne Sprachen — mit KI als dein persoenlicher Lehrer",
+    "subtitle": "Personalisierte Lektionen, intelligente Korrekturen und Fortschritts-Tracking. Von A1 bis C2.",
+    "cta": "Kostenlos starten",
+    "learnMore": "Mehr erfahren"
+  },
+  "chatMock": {
+    "botName": "Sprachlehrer Bot",
+    "botMessage": "Hallo! Schreib mir etwas in deiner Zielsprache",
+    "userMessage": "Ich habe gestern ein Buch gelest",
+    "correction": "Fast richtig!",
+    "correctedWord": "gelesen",
+    "explanation": "Das Partizip II von \"lesen\" ist unregelmaessig."
+  },
+  "features": {
+    "title": "Warum Sprachlehrer?",
+    "subtitle": "Alles, was du brauchst, um Sprachen effektiv zu lernen.",
+    "ai": { "title": "KI-gestuetztes Lernen", "desc": "Intelligente Korrekturen und Erklaerungen — wie ein echter Lehrer." },
+    "personalized": { "title": "Personalisierte Lektionen", "desc": "Angepasst an dein Level und deine Lernziele." },
+    "progress": { "title": "Fortschritts-Tracking", "desc": "XP, Streaks, Level — verfolge deinen Fortschritt." },
+    "levels": { "title": "A1 bis C2", "desc": "Vom Anfaenger bis zum Experten — alle Niveaus abgedeckt." },
+    "platforms": { "title": "Telegram & Web", "desc": "Lerne ueberall — im Browser oder per Telegram." },
+    "content": { "title": "Grammatik & Vokabeln", "desc": "Umfassende Inhalte zu allen Aspekten der Sprache." }
+  },
+  "howItWorks": {
+    "title": "So funktioniert es",
+    "step1": { "title": "Registrieren", "desc": "Erstelle ein kostenloses Konto in weniger als einer Minute." },
+    "step2": { "title": "Level waehlen", "desc": "Waehle dein Sprach-Level von A1 bis C2." },
+    "step3": { "title": "Loslegen", "desc": "Chatte, mache Lektionen und verbessere deine Sprachkenntnisse." }
+  },
+  "pricing": {
+    "title": "Preise",
+    "subtitle": "Starte kostenlos. Upgrade wenn du bereit bist.",
+    "free": {
+      "name": "Free",
+      "price": "0",
+      "period": "/Monat",
+      "features": ["10 Nachrichten pro Tag", "A1-A2 Lektionen", "Grundlegende Korrekturen", "Community Support"],
+      "cta": "Kostenlos starten"
+    },
+    "premium": {
+      "name": "Premium",
+      "popular": "Beliebt",
+      "price": "9,99",
+      "period": "/Monat",
+      "features": ["Unbegrenzte Nachrichten", "Alle Lektionen (A1-C2)", "Personalisierte Uebungen", "Woechentliche Reports", "Prioritaets-Support"],
+      "cta": "7 Tage kostenlos testen"
+    }
+  },
+  "faq": {
+    "title": "Haeufige Fragen",
+    "items": [
+      { "q": "Was kostet der Sprachlehrer?", "a": "Du kannst den Sprachlehrer kostenlos nutzen mit 10 Nachrichten pro Tag. Fuer unbegrenzten Zugang und alle Features kostet Premium 9,99 EUR pro Monat." },
+      { "q": "Fuer welche Sprachniveaus ist das geeignet?", "a": "Fuer alle! Von A1 (kompletter Anfaenger) bis C2 (nahezu muttersprachlich). Die KI passt sich an dein Level an." },
+      { "q": "Kann ich das Abo kuendigen?", "a": "Ja, jederzeit. Du behaeltst den Zugang bis zum Ende der bezahlten Periode." },
+      { "q": "Wie funktioniert die kostenlose Testphase?", "a": "Du bekommst 7 Tage vollen Premium-Zugang kostenlos. Wenn du nicht kuendigst, wird automatisch 9,99 EUR/Monat berechnet." }
+    ]
+  },
+  "footer": {
+    "copyright": "Alle Rechte vorbehalten.",
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "contact": "Kontakt"
+  }
+}

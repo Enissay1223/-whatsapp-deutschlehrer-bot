@@ -16,14 +16,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('admin_token');
-    const savedUser = localStorage.getItem('admin_user');
+    const validateSession = async () => {
+      const token = localStorage.getItem('admin_token');
+      const savedUser = localStorage.getItem('admin_user');
 
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+      if (token && savedUser) {
+        try {
+          // Validate token with server
+          const currentAdmin = await authAPI.getMe();
+          setUser(currentAdmin);
+        } catch (error) {
+          // Token expired or invalid - clear and redirect to login
+          console.warn('Session expired, clearing stored credentials');
+          localStorage.removeItem('admin_token');
+          localStorage.removeItem('admin_user');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
   const login = async (email, password) => {

@@ -14,7 +14,8 @@ import {
 import {
   handleRegistrationStep,
   handleLevelSelection,
-  handlePlanSelection
+  handlePlanSelection,
+  handleTargetLanguageSelection
 } from '../services/registration.service.js';
 import {
   handleChatMessage,
@@ -126,15 +127,16 @@ async function handleStartCommand(msg) {
       console.log('🌍 Showing language selection');
       await sendMessage(
         chatId,
-        `*Willkommen beim Deutschlehrer Bot!* 🇩🇪\n\n` +
-        `Ich helfe dir, Deutsch zu lernen - personalisiert und interaktiv.\n\n` +
-        `Lass uns beginnen! In welcher Sprache möchtest du mit mir sprechen?`,
+        `*Welcome! / Willkommen! / Bienvenue! / !مرحبا* \n\n` +
+        `I help you learn languages - personalized and interactive.\n\n` +
+        `Let's begin! Which language do you want to communicate in?`,
         createInlineKeyboard([
           [
             { text: '🇬🇧 English', callback_data: 'lang_en' },
-            { text: '🇫🇷 Français', callback_data: 'lang_fr' }
+            { text: '🇩🇪 Deutsch', callback_data: 'lang_de' }
           ],
           [
+            { text: '🇫🇷 Français', callback_data: 'lang_fr' },
             { text: '🇸🇦 العربية', callback_data: 'lang_ar' }
           ]
         ])
@@ -429,6 +431,11 @@ async function handleCallbackQuery(callbackQuery) {
 
       await sendMessage(chatId, nameMessages[language] || nameMessages.en);
       console.log('✅ Name question sent, waiting for user input');
+
+    } else if (data.startsWith('target_')) {
+      // Target language selection during registration
+      const targetLang = data.replace('target_', '');
+      await handleTargetLanguageSelection(chatId, telegramId, targetLang);
 
     } else if (data.startsWith('level_')) {
       // Level selection during registration

@@ -19,13 +19,17 @@ export async function createLesson(lessonData) {
       .from('lessons')
       .insert([{
         title: lessonData.title,
-        description: lessonData.description,
+        description: lessonData.description || '',
         content: lessonData.content,
-        level: lessonData.level,
+        level: lessonData.level || lessonData.difficulty_level,
+        category: lessonData.category || 'general',
         lesson_type: lessonData.lesson_type || 'grammar',
         difficulty_score: lessonData.difficulty_score || 1,
         tags: lessonData.tags || [],
-        is_premium: lessonData.is_premium || false
+        is_premium: lessonData.is_premium || false,
+        language: lessonData.language || 'de',
+        is_published: lessonData.is_published || false,
+        created_by: lessonData.created_by || null
       }])
       .select()
       .single();
