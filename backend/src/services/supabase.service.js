@@ -101,7 +101,7 @@ export async function updateRegistrationStep(userId, step, stepData = {}) {
   return updateUserProfile(userId, {
     registration_step: step,
     registration_data: registrationData,
-    registration_completed: step >= 5 // 5 steps total
+    registration_completed: step >= 7 // Steps 0-6 = registration flow, step 7 = completed
   });
 }
 
@@ -339,14 +339,14 @@ export async function saveConversationMessage(messageData) {
  */
 export async function getConversationHistory(userId, limit = 50) {
   const { data, error } = await supabase
-    .from('conversations')
-    .select('*')
+    .from('conversation_history')
+    .select('user_id, message_text, message_type, ai_response, has_corrections, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data.reverse(); // Reverse to get chronological order
+  return (data || []).reverse(); // Reverse to get chronological order
 }
 
 // ============================================================================

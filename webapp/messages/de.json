@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "brand": "Deutschlehrer",
+    "features": "Features",
+    "pricing": "Preise",
+    "faq": "FAQ",
+    "login": "Anmelden",
+    "getStarted": "Kostenlos starten"
+  },
+  "hero": {
+    "title": "Lerne Sprachen — mit KI als dein persönlicher Lehrer",
+    "subtitle": "Personalisierte Lektionen, intelligente Korrekturen und Fortschritts-Tracking. Von A1 bis C2.",
+    "cta": "Kostenlos starten",
+    "learnMore": "Mehr erfahren"
+  },
+  "chatMock": {
+    "botName": "Sprachlehrer Bot",
+    "greeting": "Hallo! Schreib mir etwas auf Deutsch 😊",
+    "userMsg": "Ich habe gestern ein Buch gelest",
+    "correction": "Fast richtig! ✨",
+    "wrong": "gelest",
+    "right": "gelesen",
+    "explanation": "Das Partizip II von \"lesen\" ist unregelmäßig."
+  },
+  "features": {
+    "title": "Warum Deutschlehrer?",
+    "subtitle": "Alles, was du brauchst, um effektiv Sprachen zu lernen.",
+    "ai": { "title": "KI-gestütztes Lernen", "desc": "Intelligente Korrekturen und Erklärungen — wie ein echter Lehrer." },
+    "personalized": { "title": "Personalisierte Lektionen", "desc": "Angepasst an dein Level und deine Lernziele." },
+    "progress": { "title": "Fortschritts-Tracking", "desc": "XP, Streaks, Level — verfolge deinen Fortschritt." },
+    "levels": { "title": "A1 bis C2", "desc": "Vom Anfänger bis zum Experten — alle Niveaus abgedeckt." },
+    "platforms": { "title": "Telegram & Web", "desc": "Lerne überall — im Browser oder per Telegram." },
+    "content": { "title": "Grammatik & Vokabeln", "desc": "Umfassende Inhalte zu allen Aspekten des Sprachenlernens." }
+  },
+  "howItWorks": {
+    "title": "So funktioniert es",
+    "step1": { "title": "Registrieren", "desc": "Erstelle ein kostenloses Konto in weniger als einer Minute." },
+    "step2": { "title": "Level wählen", "desc": "Wähle dein Sprachniveau von A1 bis C2." },
+    "step3": { "title": "Loslegen", "desc": "Chatte, mache Lektionen und verbessere deine Sprachkenntnisse." }
+  },
+  "pricing": {
+    "title": "Preise",
+    "subtitle": "Starte kostenlos. Upgrade wenn du bereit bist.",
+    "free": {
+      "name": "Free",
+      "price": "0",
+      "features": ["10 Nachrichten pro Tag", "A1–A2 Lektionen", "Grundlegende Korrekturen", "Community Support"],
+      "cta": "Kostenlos starten"
+    },
+    "premium": {
+      "name": "Premium",
+      "price": "9,99",
+      "popular": "Beliebt",
+      "features": ["Unbegrenzte Nachrichten", "Alle Lektionen (A1–C2)", "Personalisierte Übungen", "Wöchentliche Reports", "Prioritäts-Support"],
+      "cta": "7 Tage kostenlos testen"
+    },
+    "perMonth": "/Monat"
+  },
+  "faq": {
+    "title": "Häufige Fragen",
+    "items": [
+      { "q": "Was kostet Deutschlehrer?", "a": "Du kannst Deutschlehrer kostenlos nutzen mit 10 Nachrichten pro Tag. Für unbegrenzten Zugang und alle Features kostet Premium 9,99€ pro Monat." },
+      { "q": "Für welche Sprachniveaus ist das geeignet?", "a": "Für alle! Von A1 (kompletter Anfänger) bis C2 (nahezu muttersprachlich). Die KI passt sich an dein Level an." },
+      { "q": "Kann ich das Abo kündigen?", "a": "Ja, jederzeit. Du behältst den Zugang bis zum Ende der bezahlten Periode." },
+      { "q": "Wie funktioniert die kostenlose Testphase?", "a": "Du bekommst 7 Tage vollen Premium-Zugang kostenlos. Wenn du nicht kündigst, wird automatisch 9,99€/Monat berechnet." }
+    ]
+  },
+  "footer": {
+    "copyright": "© 2026 Deutschlehrer. Alle Rechte vorbehalten.",
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "contact": "Kontakt"
+  }
+}

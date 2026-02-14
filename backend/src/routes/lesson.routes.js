@@ -54,28 +54,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-/**
- * Get single lesson
- * GET /api/lessons/:id
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const lesson = await getLessonById(req.params.id);
-
-    if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
-    }
-
-    res.json(lesson);
-
-  } catch (error) {
-    console.error('Get lesson error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ============================================================================
-// ADMIN ROUTES (Protected)
+// ADMIN ROUTES (Protected) — must be before /:id to prevent "admin" matching as UUID
 // ============================================================================
 
 /**
@@ -95,6 +75,26 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('Get all lessons error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get single lesson
+ * GET /api/lessons/:id
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const lesson = await getLessonById(req.params.id);
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    res.json(lesson);
+
+  } catch (error) {
+    console.error('Get lesson error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -130,7 +130,8 @@ export function formatLessonRecommendations(lessons, preferredLanguage = 'en') {
   const headers = {
     en: '\n\n📚 *Recommended Lessons:*\n',
     fr: '\n\n📚 *Leçons recommandées :*\n',
-    ar: '\n\n📚 *الدروس الموصى بها:*\n'
+    ar: '\n\n📚 *الدروس الموصى بها:*\n',
+    de: '\n\n📚 *Empfohlene Lektionen:*\n'
   };
 
   let message = headers[preferredLanguage] || headers.en;
@@ -144,7 +145,8 @@ export function formatLessonRecommendations(lessons, preferredLanguage = 'en') {
   const ctas = {
     en: 'Type `/lesson` to start a lesson!',
     fr: 'Tapez `/lesson` pour commencer une leçon !',
-    ar: 'اكتب `/lesson` لبدء درس!'
+    ar: 'اكتب `/lesson` لبدء درس!',
+    de: 'Tippe `/lesson` um eine Lektion zu starten!'
   };
 
   message += ctas[preferredLanguage] || ctas.en;
