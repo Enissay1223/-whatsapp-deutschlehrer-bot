@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { lessonsAPI } from '../api/api';
+import { RichTextEditor, RichTextViewer } from '../components/RichTextEditor';
 
 export default function Lessons() {
   const [lessons, setLessons] = useState([]);
@@ -16,7 +17,7 @@ export default function Lessons() {
     try {
       setLoading(true);
       const data = await lessonsAPI.getAllLessons();
-      setLessons(data.lessons || []);
+      setLessons(Array.isArray(data) ? data : data.lessons || []);
       setError('');
     } catch (err) {
       console.error('Error fetching lessons:', err);
@@ -123,12 +124,19 @@ function LessonCard({ lesson, onEdit, onDelete }) {
         </span>
       </div>
 
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3">{lesson.content}</p>
+      <div className="text-gray-600 text-sm mb-4 line-clamp-3">
+        <RichTextViewer content={lesson.content} />
+      </div>
 
       <div className="flex items-center gap-2 mb-4 text-xs text-gray-500">
         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
-          {lesson.difficulty_level}
+          {lesson.level}
         </span>
+        {lesson.language && (
+          <span className="bg-green-100 text-green-800 px-2 py-1 rounded">
+            {lesson.language === 'de' ? '🇩🇪' : lesson.language === 'en' ? '🇬🇧' : lesson.language === 'fr' ? '🇫🇷' : lesson.language === 'ar' ? '🇸🇦' : lesson.language === 'es' ? '🇪🇸' : lesson.language === 'tr' ? '🇹🇷' : lesson.language}
+          </span>
+        )}
         <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
           {lesson.lesson_type}
         </span>
@@ -160,9 +168,10 @@ function LessonModal({ lesson, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     title: lesson?.title || '',
     content: lesson?.content || '',
-    difficulty_level: lesson?.difficulty_level || 'A1',
+    level: lesson?.level || 'A1',
     lesson_type: lesson?.lesson_type || 'grammar',
     category: lesson?.category || '',
+    language: lesson?.language || 'de',
     is_premium: lesson?.is_premium || false,
     is_published: lesson?.is_published || false,
   });
@@ -218,15 +227,13 @@ function LessonModal({ lesson, onClose, onSuccess }) {
               />
             </div>
 
-            {/* Content */}
+            {/* Content - Rich Text Editor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Inhalt</label>
-              <textarea
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                required
-                rows={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              <RichTextEditor
+                content={formData.content}
+                onChange={(content) => setFormData({ ...formData, content })}
+                placeholder="Lektionsinhalt hier eingeben..."
               />
             </div>
 
@@ -236,8 +243,8 @@ function LessonModal({ lesson, onClose, onSuccess }) {
                 Schwierigkeitsgrad
               </label>
               <select
-                value={formData.difficulty_level}
-                onChange={(e) => setFormData({ ...formData, difficulty_level: e.target.value })}
+                value={formData.level}
+                onChange={(e) => setFormData({ ...formData, level: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="A1">A1 - Anfänger</option>
@@ -261,6 +268,23 @@ function LessonModal({ lesson, onClose, onSuccess }) {
                 <option value="vocabulary">Vokabular</option>
                 <option value="conversation">Konversation</option>
                 <option value="exercise">Übung</option>
+              </select>
+            </div>
+
+            {/* Language */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Sprache</label>
+              <select
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="tr">🇹🇷 Türkçe</option>
               </select>
             </div>
 

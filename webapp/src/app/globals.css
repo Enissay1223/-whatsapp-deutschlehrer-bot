@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* RTL Support */
+[dir="rtl"] .ms-auto {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+}
