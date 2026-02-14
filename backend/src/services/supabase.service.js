@@ -101,7 +101,7 @@ export async function updateRegistrationStep(userId, step, stepData = {}) {
   return updateUserProfile(userId, {
     registration_step: step,
     registration_data: registrationData,
-    registration_completed: step >= 7 // Steps: 0-6 = registration flow, 7 = completed
+    registration_completed: step >= 7 // Steps 0-6 = registration flow, step 7 = completed
   });
 }
 

@@ -2,14 +2,13 @@
 
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { routing } from '@/i18n/routing';
 
-const localeLabels: Record<string, string> = {
-  en: '🇬🇧',
-  de: '🇩🇪',
-  fr: '🇫🇷',
-  ar: '🇸🇦',
-};
+const languages = [
+  { code: 'en', label: '🇬🇧 EN' },
+  { code: 'de', label: '🇩🇪 DE' },
+  { code: 'fr', label: '🇫🇷 FR' },
+  { code: 'ar', label: '🇸🇦 AR' },
+];
 
 export default function LanguageSwitcher() {
   const locale = useLocale();
@@ -17,20 +16,18 @@ export default function LanguageSwitcher() {
   const pathname = usePathname();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLocale = e.target.value;
-    router.replace(pathname, { locale: newLocale });
+    router.replace(pathname, { locale: e.target.value });
   };
 
   return (
     <select
       value={locale}
       onChange={handleChange}
-      className="text-sm bg-transparent border border-gray-300 rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500"
-      aria-label="Language"
+      className="bg-transparent border border-gray-300 rounded-md px-2 py-1 text-sm cursor-pointer"
     >
-      {routing.locales.map((loc) => (
-        <option key={loc} value={loc}>
-          {localeLabels[loc] || loc} {loc.toUpperCase()}
+      {languages.map((lang) => (
+        <option key={lang.code} value={lang.code}>
+          {lang.label}
         </option>
       ))}
     </select>

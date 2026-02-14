@@ -1,41 +1,42 @@
 {
   "nav": {
-    "brand": "Language Tutor",
+    "brand": "Deutschlehrer",
     "features": "Features",
     "pricing": "Pricing",
     "faq": "FAQ",
     "login": "Login",
-    "register": "Start Free"
+    "getStarted": "Get Started Free"
   },
   "hero": {
     "title": "Learn Languages — with AI as your personal tutor",
-    "subtitle": "Personalized lessons, intelligent corrections and progress tracking. From A1 to C2.",
-    "cta": "Start Free",
-    "learnMore": "Learn more"
+    "subtitle": "Personalized lessons, intelligent corrections, and progress tracking. From A1 to C2.",
+    "cta": "Get Started Free",
+    "learnMore": "Learn More"
   },
   "chatMock": {
     "botName": "Language Tutor Bot",
-    "botMessage": "Hello! Write something in your target language",
-    "userMessage": "Ich habe gestern ein Buch gelest",
-    "correction": "Almost right!",
-    "correctedWord": "gelesen",
+    "greeting": "Hello! Write me something in your target language 😊",
+    "userMsg": "Ich habe gestern ein Buch gelest",
+    "correction": "Almost right! ✨",
+    "wrong": "gelest",
+    "right": "gelesen",
     "explanation": "The past participle of \"lesen\" is irregular."
   },
   "features": {
-    "title": "Why Language Tutor?",
+    "title": "Why Deutschlehrer?",
     "subtitle": "Everything you need to learn languages effectively.",
     "ai": { "title": "AI-Powered Learning", "desc": "Intelligent corrections and explanations — like a real teacher." },
     "personalized": { "title": "Personalized Lessons", "desc": "Adapted to your level and learning goals." },
     "progress": { "title": "Progress Tracking", "desc": "XP, streaks, levels — track your progress." },
     "levels": { "title": "A1 to C2", "desc": "From beginner to expert — all levels covered." },
-    "platforms": { "title": "Telegram & Web", "desc": "Learn anywhere — in your browser or via Telegram." },
-    "content": { "title": "Grammar & Vocabulary", "desc": "Comprehensive content on all aspects of the language." }
+    "platforms": { "title": "Telegram & Web", "desc": "Learn anywhere — in the browser or via Telegram." },
+    "content": { "title": "Grammar & Vocabulary", "desc": "Comprehensive content covering all aspects of language learning." }
   },
   "howItWorks": {
-    "title": "How it works",
+    "title": "How it Works",
     "step1": { "title": "Register", "desc": "Create a free account in less than a minute." },
-    "step2": { "title": "Choose your level", "desc": "Select your language level from A1 to C2." },
-    "step3": { "title": "Start learning", "desc": "Chat, take lessons and improve your language skills." }
+    "step2": { "title": "Choose Level", "desc": "Choose your language level from A1 to C2." },
+    "step3": { "title": "Start Learning", "desc": "Chat, take lessons and improve your language skills." }
   },
   "pricing": {
     "title": "Pricing",
@@ -43,30 +44,29 @@
     "free": {
       "name": "Free",
       "price": "0",
-      "period": "/month",
-      "features": ["10 messages per day", "A1-A2 lessons", "Basic corrections", "Community support"],
-      "cta": "Start Free"
+      "features": ["10 messages per day", "A1–A2 lessons", "Basic corrections", "Community support"],
+      "cta": "Get Started Free"
     },
     "premium": {
       "name": "Premium",
-      "popular": "Popular",
       "price": "9.99",
-      "period": "/month",
-      "features": ["Unlimited messages", "All lessons (A1-C2)", "Personalized exercises", "Weekly reports", "Priority support"],
-      "cta": "Try 7 days free"
-    }
+      "popular": "Popular",
+      "features": ["Unlimited messages", "All lessons (A1–C2)", "Personalized exercises", "Weekly reports", "Priority support"],
+      "cta": "Try 7 Days Free"
+    },
+    "perMonth": "/month"
   },
   "faq": {
-    "title": "Frequently Asked Questions",
+    "title": "FAQ",
     "items": [
-      { "q": "How much does it cost?", "a": "You can use the app for free with 10 messages per day. For unlimited access and all features, Premium costs 9.99 EUR per month." },
-      { "q": "What language levels are supported?", "a": "All of them! From A1 (complete beginner) to C2 (near-native). The AI adapts to your level." },
-      { "q": "Can I cancel my subscription?", "a": "Yes, anytime. You keep access until the end of your paid period." },
-      { "q": "How does the free trial work?", "a": "You get 7 days of full Premium access for free. If you don't cancel, 9.99 EUR/month is charged automatically." }
+      { "q": "How much does it cost?", "a": "You can use Deutschlehrer for free with 10 messages per day. For unlimited access and all features, Premium costs €9.99 per month." },
+      { "q": "Which language levels is this for?", "a": "All levels! From A1 (complete beginner) to C2 (near native). The AI adapts to your level." },
+      { "q": "Can I cancel my subscription?", "a": "Yes, anytime. You keep access until the end of the paid period." },
+      { "q": "How does the free trial work?", "a": "You get 7 days of full Premium access for free. If you don't cancel, €9.99/month will be charged automatically." }
     ]
   },
   "footer": {
-    "copyright": "All rights reserved.",
+    "copyright": "© 2026 Deutschlehrer. All rights reserved.",
     "imprint": "Imprint",
     "privacy": "Privacy",
     "contact": "Contact"

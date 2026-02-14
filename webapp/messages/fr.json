@@ -1,74 +1,74 @@
 {
   "nav": {
-    "brand": "Prof de Langues",
-    "features": "Fonctionnalites",
+    "brand": "Deutschlehrer",
+    "features": "Fonctionnalités",
     "pricing": "Tarifs",
     "faq": "FAQ",
     "login": "Connexion",
-    "register": "Commencer gratuitement"
+    "getStarted": "Commencer gratuitement"
   },
   "hero": {
-    "title": "Apprends des langues — avec l'IA comme prof personnel",
-    "subtitle": "Lecons personnalisees, corrections intelligentes et suivi de progression. De A1 a C2.",
+    "title": "Apprends les langues — avec l'IA comme tuteur personnel",
+    "subtitle": "Leçons personnalisées, corrections intelligentes et suivi des progrès. De A1 à C2.",
     "cta": "Commencer gratuitement",
     "learnMore": "En savoir plus"
   },
   "chatMock": {
-    "botName": "Bot Prof de Langues",
-    "botMessage": "Salut ! Ecris quelque chose dans ta langue cible",
-    "userMessage": "Ich habe gestern ein Buch gelest",
-    "correction": "Presque correct !",
-    "correctedWord": "gelesen",
-    "explanation": "Le participe passe de \"lesen\" est irregulier."
+    "botName": "Bot Tuteur de Langues",
+    "greeting": "Salut ! Écris-moi quelque chose dans ta langue cible 😊",
+    "userMsg": "Ich habe gestern ein Buch gelest",
+    "correction": "Presque correct ! ✨",
+    "wrong": "gelest",
+    "right": "gelesen",
+    "explanation": "Le participe passé de \"lesen\" est irrégulier."
   },
   "features": {
-    "title": "Pourquoi Prof de Langues ?",
-    "subtitle": "Tout ce dont tu as besoin pour apprendre efficacement.",
-    "ai": { "title": "Apprentissage par IA", "desc": "Corrections et explications intelligentes — comme un vrai prof." },
-    "personalized": { "title": "Lecons personnalisees", "desc": "Adaptees a ton niveau et tes objectifs." },
-    "progress": { "title": "Suivi de progression", "desc": "XP, series, niveaux — suis tes progres." },
-    "levels": { "title": "A1 a C2", "desc": "Du debutant a l'expert — tous les niveaux couverts." },
-    "platforms": { "title": "Telegram & Web", "desc": "Apprends partout — dans ton navigateur ou via Telegram." },
-    "content": { "title": "Grammaire & Vocabulaire", "desc": "Contenu complet sur tous les aspects de la langue." }
+    "title": "Pourquoi Deutschlehrer ?",
+    "subtitle": "Tout ce dont tu as besoin pour apprendre les langues efficacement.",
+    "ai": { "title": "Apprentissage par IA", "desc": "Corrections intelligentes et explications — comme un vrai prof." },
+    "personalized": { "title": "Leçons personnalisées", "desc": "Adaptées à ton niveau et tes objectifs." },
+    "progress": { "title": "Suivi des progrès", "desc": "XP, séries, niveaux — suis tes progrès." },
+    "levels": { "title": "A1 à C2", "desc": "Du débutant à l'expert — tous les niveaux couverts." },
+    "platforms": { "title": "Telegram & Web", "desc": "Apprends partout — dans le navigateur ou via Telegram." },
+    "content": { "title": "Grammaire & Vocabulaire", "desc": "Contenu complet couvrant tous les aspects de l'apprentissage." }
   },
   "howItWorks": {
-    "title": "Comment ca marche",
-    "step1": { "title": "Inscris-toi", "desc": "Cree un compte gratuit en moins d'une minute." },
-    "step2": { "title": "Choisis ton niveau", "desc": "Selectionne ton niveau de A1 a C2." },
-    "step3": { "title": "C'est parti", "desc": "Chatte, fais des lecons et ameliore tes competences." }
+    "title": "Comment ça marche",
+    "step1": { "title": "Inscription", "desc": "Crée un compte gratuit en moins d'une minute." },
+    "step2": { "title": "Choisis ton niveau", "desc": "Choisis ton niveau de langue de A1 à C2." },
+    "step3": { "title": "C'est parti", "desc": "Discute, fais des leçons et améliore tes compétences." }
   },
   "pricing": {
     "title": "Tarifs",
-    "subtitle": "Commence gratuitement. Passe a Premium quand tu es pret.",
+    "subtitle": "Commence gratuitement. Passe à Premium quand tu es prêt.",
     "free": {
       "name": "Gratuit",
       "price": "0",
-      "period": "/mois",
-      "features": ["10 messages par jour", "Lecons A1-A2", "Corrections basiques", "Support communautaire"],
+      "features": ["10 messages par jour", "Leçons A1–A2", "Corrections de base", "Support communautaire"],
       "cta": "Commencer gratuitement"
     },
     "premium": {
       "name": "Premium",
-      "popular": "Populaire",
       "price": "9,99",
-      "period": "/mois",
-      "features": ["Messages illimites", "Toutes les lecons (A1-C2)", "Exercices personnalises", "Rapports hebdomadaires", "Support prioritaire"],
-      "cta": "Essayer 7 jours gratuits"
-    }
+      "popular": "Populaire",
+      "features": ["Messages illimités", "Toutes les leçons (A1–C2)", "Exercices personnalisés", "Rapports hebdomadaires", "Support prioritaire"],
+      "cta": "Essai gratuit de 7 jours"
+    },
+    "perMonth": "/mois"
   },
   "faq": {
-    "title": "Questions frequentes",
+    "title": "Questions fréquentes",
     "items": [
-      { "q": "Combien ca coute ?", "a": "Tu peux utiliser l'appli gratuitement avec 10 messages par jour. Pour un acces illimite, Premium coute 9,99 EUR par mois." },
-      { "q": "Quels niveaux sont supportes ?", "a": "Tous ! De A1 (debutant complet) a C2 (quasi natif). L'IA s'adapte a ton niveau." },
-      { "q": "Puis-je annuler mon abonnement ?", "a": "Oui, a tout moment. Tu gardes l'acces jusqu'a la fin de ta periode payee." },
-      { "q": "Comment fonctionne l'essai gratuit ?", "a": "Tu obtiens 7 jours d'acces Premium complet gratuitement. Si tu n'annules pas, 9,99 EUR/mois est debite automatiquement." }
+      { "q": "Combien ça coûte ?", "a": "Tu peux utiliser Deutschlehrer gratuitement avec 10 messages par jour. Pour un accès illimité, Premium coûte 9,99€ par mois." },
+      { "q": "Pour quels niveaux est-ce adapté ?", "a": "Tous les niveaux ! De A1 (débutant) à C2 (quasi natif). L'IA s'adapte à ton niveau." },
+      { "q": "Puis-je annuler mon abonnement ?", "a": "Oui, à tout moment. Tu gardes l'accès jusqu'à la fin de la période payée." },
+      { "q": "Comment fonctionne l'essai gratuit ?", "a": "Tu obtiens 7 jours d'accès Premium complet gratuit. Si tu n'annules pas, 9,99€/mois sera facturé automatiquement." }
     ]
   },
   "footer": {
-    "copyright": "Tous droits reserves.",
-    "imprint": "Mentions legales",
-    "privacy": "Confidentialite",
+    "copyright": "© 2026 Deutschlehrer. Tous droits réservés.",
+    "imprint": "Mentions légales",
+    "privacy": "Confidentialité",
     "contact": "Contact"
   }
 }

@@ -22,11 +22,9 @@ export const AuthProvider = ({ children }) => {
 
       if (token && savedUser) {
         try {
-          // Validate token with server
           const currentAdmin = await authAPI.getMe();
           setUser(currentAdmin);
         } catch (error) {
-          // Token expired or invalid - clear and redirect to login
           console.warn('Session expired, clearing stored credentials');
           localStorage.removeItem('admin_token');
           localStorage.removeItem('admin_user');

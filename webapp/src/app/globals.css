@@ -2,12 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* RTL support for Arabic */
-[dir="rtl"] {
-  text-align: right;
-}
-
-[dir="rtl"] .ml-auto {
-  margin-left: unset;
-  margin-right: auto;
+/* RTL Support */
+[dir="rtl"] .ms-auto {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
 }

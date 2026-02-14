@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 });
 
 // ============================================================================
-// ADMIN ROUTES (Protected) - Must be defined BEFORE /:id to avoid conflicts
+// ADMIN ROUTES (Protected) — must be before /:id to prevent "admin" matching as UUID
 // ============================================================================
 
 /**

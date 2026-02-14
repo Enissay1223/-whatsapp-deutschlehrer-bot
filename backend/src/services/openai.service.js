@@ -1,7 +1,7 @@
 /**
  * OPENAI SERVICE
  * Handles AI-powered language learning conversations with error correction
- * Supports multiple target languages (not just German)
+ * Supports multiple target languages dynamically
  */
 
 import OpenAI from 'openai';
@@ -19,107 +19,107 @@ const openai = new OpenAI({
 // ============================================================================
 
 /**
- * Generate a system prompt based on user's UI language and target learning language
+ * Generate a system prompt based on UI language and target language
  */
-function getSystemPrompt(uiLanguage, targetLanguage, targetLevel, learningGoal) {
-  const targetName = getTargetLanguageName(targetLanguage, uiLanguage);
+function getSystemPrompt(uiLanguage = 'en', targetLanguage = 'de', targetLevel = 'A1', learningGoal = 'General conversation') {
+  const targetLangName = getTargetLanguageName(targetLanguage, uiLanguage);
 
   const prompts = {
-    en: `You are a friendly ${targetName} language tutor bot. Your role is to:
-1. Have natural conversations with ${targetName} learners
-2. Correct their ${targetName} mistakes gently and explain why IN ENGLISH
+    en: `You are a friendly ${targetLangName} language tutor bot. Your role is to:
+1. Have natural conversations with ${targetLangName} learners
+2. Correct their ${targetLangName} mistakes gently and explain why IN ENGLISH
 3. Provide vocabulary and grammar tips IN ENGLISH
-4. Adapt to their level (${targetLevel || 'A1'}-C2)
+4. Adapt to their level (${targetLevel})
 5. Be encouraging and supportive
 
-IMPORTANT: Respond entirely in ENGLISH, except for ${targetName} words/phrases being taught.
+IMPORTANT: Respond entirely in ENGLISH, except for ${targetLangName} words/phrases being taught.
 
-When the user writes in ${targetName}:
+When the user writes in ${targetLangName}:
 - If there are errors, correct them politely
 - Explain the correction briefly IN ENGLISH
-- Continue the conversation IN ENGLISH (you can include ${targetName} words/phrases naturally)
+- Continue the conversation IN ENGLISH (you can include ${targetLangName} words/phrases naturally)
 
 Format your response as:
-**Correction:** [the corrected ${targetName} sentence]
+**Correction:** [the corrected ${targetLangName} sentence]
 **Explanation:** [brief explanation IN ENGLISH of what was wrong]
-**Response:** [your conversational response IN ENGLISH, you can include ${targetName} words naturally]
+**Response:** [your conversational response IN ENGLISH, you can include ${targetLangName} words naturally]
 
-If there are no errors, respond conversationally in ENGLISH and acknowledge their good ${targetName}.
+If there are no errors, respond conversationally in ENGLISH and acknowledge their good ${targetLangName}.
 
-User's ${targetName} level: ${targetLevel || 'A1'}
-Learning goal: ${learningGoal || 'General conversation'}`,
+User's level: ${targetLevel}
+Learning goal: ${learningGoal}`,
 
-    fr: `Tu es un tuteur amical pour apprendre le ${targetName}. Ton rôle est de:
-1. Avoir des conversations naturelles avec les apprenants de ${targetName}
-2. Corriger leurs erreurs en ${targetName} gentiment et expliquer EN FRANÇAIS
+    fr: `Tu es un tuteur amical pour apprendre ${targetLangName}. Ton rôle est de:
+1. Avoir des conversations naturelles avec les apprenants de ${targetLangName}
+2. Corriger leurs erreurs en ${targetLangName} gentiment et expliquer EN FRANÇAIS
 3. Fournir des conseils de vocabulaire et de grammaire EN FRANÇAIS
-4. T'adapter à leur niveau (${targetLevel || 'A1'}-C2)
+4. T'adapter à leur niveau (${targetLevel})
 5. Être encourageant et positif
 
-IMPORTANT: Réponds entièrement en FRANÇAIS, sauf pour les mots/phrases en ${targetName} enseignés.
+IMPORTANT: Réponds entièrement en FRANÇAIS, sauf pour les mots/phrases en ${targetLangName} enseignés.
 
-Quand l'utilisateur écrit en ${targetName}:
+Quand l'utilisateur écrit en ${targetLangName}:
 - S'il y a des erreurs, corrige-les poliment
 - Explique brièvement la correction EN FRANÇAIS
-- Continue la conversation EN FRANÇAIS (tu peux inclure des mots en ${targetName} naturellement)
+- Continue la conversation EN FRANÇAIS (tu peux inclure des mots en ${targetLangName} naturellement)
 
 Format de réponse:
-**Correction:** [la phrase en ${targetName} corrigée]
+**Correction:** [la phrase en ${targetLangName} corrigée]
 **Explication:** [brève explication EN FRANÇAIS de l'erreur]
-**Réponse:** [ta réponse conversationnelle EN FRANÇAIS, tu peux inclure des mots en ${targetName} naturellement]
+**Réponse:** [ta réponse conversationnelle EN FRANÇAIS, tu peux inclure des mots en ${targetLangName} naturellement]
 
-S'il n'y a pas d'erreur, réponds de manière conversationnelle en FRANÇAIS et félicite leur bon ${targetName}.
+S'il n'y a pas d'erreur, réponds de manière conversationnelle en FRANÇAIS et félicite leur bon ${targetLangName}.
 
-Niveau de ${targetName} de l'utilisateur: ${targetLevel || 'A1'}
-Objectif d'apprentissage: ${learningGoal || 'Conversation générale'}`,
+Niveau de l'utilisateur: ${targetLevel}
+Objectif d'apprentissage: ${learningGoal}`,
 
-    ar: `أنت مدرس لغة ${targetName} ودود. دورك هو:
-1. إجراء محادثات طبيعية مع متعلمي ${targetName}
-2. تصحيح أخطائهم في ${targetName} بلطف وشرح السبب بالعربية
+    ar: `أنت مدرس لغة ${targetLangName} ودود. دورك هو:
+1. إجراء محادثات طبيعية مع متعلمي ${targetLangName}
+2. تصحيح أخطائهم في ${targetLangName} بلطف وشرح السبب بالعربية
 3. تقديم نصائح حول المفردات والقواعد بالعربية
-4. التكيف مع مستواهم (${targetLevel || 'A1'}-C2)
+4. التكيف مع مستواهم (${targetLevel})
 5. كن مشجعاً وداعماً
 
-مهم جداً: رد بالكامل بالعربية، باستثناء كلمات/عبارات ${targetName} التي يتم تدريسها.
+مهم جداً: رد بالكامل بالعربية، باستثناء الكلمات/العبارات في ${targetLangName} التي يتم تدريسها.
 
-عندما يكتب المستخدم بـ${targetName}:
+عندما يكتب المستخدم بـ${targetLangName}:
 - إذا كانت هناك أخطاء، صححها بأدب
 - اشرح التصحيح بإيجاز بالعربية
-- تابع المحادثة بالعربية (يمكنك تضمين كلمات ${targetName} بشكل طبيعي)
+- تابع المحادثة بالعربية (يمكنك تضمين كلمات ${targetLangName} بشكل طبيعي)
 
 صيغة الرد:
-**التصحيح:** [الجملة المصححة بـ${targetName}]
+**التصحيح:** [الجملة المصححة في ${targetLangName}]
 **الشرح:** [شرح مختصر بالعربية للخطأ]
-**الرد:** [ردك المحادثاتي بالعربية، يمكنك تضمين كلمات ${targetName} بشكل طبيعي]
+**الرد:** [ردك المحادثاتي بالعربية، يمكنك تضمين كلمات ${targetLangName} بشكل طبيعي]
 
-إذا لم يكن هناك خطأ، رد بشكل محادثاتي بالعربية وامدح ${targetName} الجيدة.
+إذا لم يكن هناك خطأ، رد بشكل محادثاتي بالعربية وامدح مستواهم الجيد في ${targetLangName}.
 
-مستوى ${targetName} للمستخدم: ${targetLevel || 'A1'}
-هدف التعلم: ${learningGoal || 'محادثة عامة'}`,
+مستوى المستخدم: ${targetLevel}
+هدف التعلم: ${learningGoal}`,
 
-    de: `Du bist ein freundlicher ${targetName}-Sprachtutor-Bot. Deine Aufgabe ist:
-1. Natürliche Gespräche mit ${targetName}-Lernenden führen
-2. Ihre ${targetName}-Fehler sanft korrigieren und AUF DEUTSCH erklären
-3. Vokabel- und Grammatiktipps AUF DEUTSCH geben
-4. Dich an ihr Niveau anpassen (${targetLevel || 'A1'}-C2)
-5. Ermutigend und unterstützend sein
+    de: `Du bist ein freundlicher ${targetLangName}-Sprachtutor-Bot. Deine Rolle ist es:
+1. Natürliche Gespräche mit ${targetLangName}-Lernenden zu führen
+2. Ihre ${targetLangName}-Fehler sanft zu korrigieren und AUF DEUTSCH zu erklären
+3. Vokabel- und Grammatiktipps AUF DEUTSCH zu geben
+4. Dich an ihr Niveau (${targetLevel}) anzupassen
+5. Ermutigend und unterstützend zu sein
 
-WICHTIG: Antworte komplett auf DEUTSCH, außer bei ${targetName}-Wörtern/Phrasen, die gelehrt werden.
+WICHTIG: Antworte vollständig auf DEUTSCH, außer bei ${targetLangName}-Wörtern/Phrasen, die gelehrt werden.
 
-Wenn der User auf ${targetName} schreibt:
-- Bei Fehlern: korrigiere sie höflich
+Wenn der User in ${targetLangName} schreibt:
+- Wenn Fehler vorhanden sind, korrigiere sie höflich
 - Erkläre die Korrektur kurz AUF DEUTSCH
-- Führe das Gespräch AUF DEUTSCH weiter (du kannst ${targetName}-Wörter natürlich einbauen)
+- Führe das Gespräch AUF DEUTSCH weiter (du kannst ${targetLangName}-Wörter natürlich einbauen)
 
 Antwortformat:
-**Korrektur:** [der korrigierte ${targetName}-Satz]
+**Korrektur:** [der korrigierte ${targetLangName}-Satz]
 **Erklärung:** [kurze Erklärung AUF DEUTSCH, was falsch war]
-**Antwort:** [deine Gesprächsantwort AUF DEUTSCH, du kannst ${targetName}-Wörter natürlich einbauen]
+**Antwort:** [deine gesprächige Antwort AUF DEUTSCH, du kannst ${targetLangName}-Wörter natürlich einbauen]
 
-Wenn es keine Fehler gibt, antworte gesprächig auf DEUTSCH und lobe ihr gutes ${targetName}.
+Wenn keine Fehler vorhanden sind, antworte gesprächig auf DEUTSCH und lobe ihr gutes ${targetLangName}.
 
-${targetName}-Niveau des Users: ${targetLevel || 'A1'}
-Lernziel: ${learningGoal || 'Allgemeine Konversation'}`
+Niveau des Users: ${targetLevel}
+Lernziel: ${learningGoal}`
   };
 
   return prompts[uiLanguage] || prompts.en;
@@ -131,31 +131,29 @@ Lernziel: ${learningGoal || 'Allgemeine Konversation'}`
 
 /**
  * Process user message with AI - corrects target language and continues conversation
- * Supports any target language, not just German
  */
 export async function processLanguageMessage(userMessage, userProfile, conversationHistory = []) {
   try {
     const {
       preferred_language,
-      target_language,
       german_level,
+      target_language,
       target_level,
       learning_goal
     } = userProfile;
 
-    const effectiveLevel = target_level || german_level || 'A1';
-    const effectiveTargetLang = target_language || 'de';
+    const uiLang = preferred_language || 'en';
+    const targetLang = target_language || 'de';
+    const level = target_level || german_level || 'A1';
 
     // Build conversation context
-    const systemPrompt = getSystemPrompt(
-      preferred_language || 'en',
-      effectiveTargetLang,
-      effectiveLevel,
-      learning_goal
-    );
+    const systemPrompt = getSystemPrompt(uiLang, targetLang, level, learning_goal || 'General conversation');
 
     const messages = [
-      { role: 'system', content: systemPrompt }
+      {
+        role: 'system',
+        content: systemPrompt
+      }
     ];
 
     // Add conversation history (last 5 messages)
@@ -173,12 +171,7 @@ export async function processLanguageMessage(userMessage, userProfile, conversat
       content: userMessage
     });
 
-    console.log('🤖 Sending to OpenAI:', {
-      messagesCount: messages.length,
-      userLevel: effectiveLevel,
-      targetLang: effectiveTargetLang,
-      uiLang: preferred_language
-    });
+    console.log('🤖 Sending to OpenAI:', { messagesCount: messages.length, userLevel: level, targetLang });
 
     // Call OpenAI
     const response = await openai.chat.completions.create({
@@ -214,14 +207,14 @@ export const processGermanMessage = processLanguageMessage;
 /**
  * Analyze user's language level based on their writing
  */
-export async function analyzeLanguageLevel(userMessage, targetLanguage = 'German') {
+export async function analyzeGermanLevel(userMessage) {
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a ${targetLanguage} language level assessor. Analyze the ${targetLanguage} text and determine the CEFR level (A1, A2, B1, B2, C1, C2).
+          content: `You are a language level assessor. Analyze the text and determine the CEFR level (A1, A2, B1, B2, C1, C2).
 
 Consider:
 - Grammar accuracy
@@ -241,35 +234,27 @@ Respond ONLY with the level code (A1, A2, B1, B2, C1, or C2).`
     });
 
     const level = response.choices[0].message.content.trim();
-    console.log(`📊 Assessed ${targetLanguage} level:`, level);
+    console.log('📊 Assessed level:', level);
 
     return level;
 
   } catch (error) {
-    console.error('❌ Error analyzing language level:', error);
+    console.error('❌ Error analyzing level:', error);
     return null;
   }
 }
-
-// Backward compatibility alias
-export const analyzeGermanLevel = analyzeLanguageLevel;
 
 /**
  * Generate personalized lesson recommendation prompt
  */
 export async function generateLessonQuery(userMessage, corrections, userProfile) {
   try {
-    const targetLangName = getTargetLanguageName(
-      userProfile.target_language || 'de',
-      'en'
-    );
-
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a ${targetLangName} learning assistant. Based on the user's message and any corrections, generate a short search query (2-4 words) that would find relevant ${targetLangName} lessons.
+          content: `You are a language learning assistant. Based on the user's message and any corrections, generate a short search query (2-4 words) that would find relevant lessons.
 
 Focus on:
 - Grammar topics if there were grammar errors
@@ -282,7 +267,8 @@ Respond ONLY with the search query, nothing else.`
           role: 'user',
           content: `User wrote: "${userMessage}"
 ${corrections ? `Corrections made: ${corrections}` : 'No corrections needed'}
-User level: ${userProfile.target_level || userProfile.german_level || 'A1'}`
+User level: ${userProfile.target_level || userProfile.german_level || 'A1'}
+Target language: ${userProfile.target_language || 'de'}`
         }
       ],
       temperature: 0.5,
@@ -302,8 +288,7 @@ User level: ${userProfile.target_level || userProfile.german_level || 'A1'}`
 
 export default {
   processLanguageMessage,
-  processGermanMessage: processLanguageMessage,
-  analyzeLanguageLevel,
-  analyzeGermanLevel: analyzeLanguageLevel,
+  processGermanMessage,
+  analyzeGermanLevel,
   generateLessonQuery
 };
