@@ -32,10 +32,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const defaultAuth: AuthContextType = {
+  user: null,
+  profile: null,
+  loading: true,
+  login: async () => ({ error: 'Not initialized' }),
+  register: async () => ({ error: 'Not initialized' }),
+  loginWithGoogle: async () => {},
+  logout: async () => {},
+  refreshProfile: async () => {},
+};
+
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  // Return safe default during SSR/prerendering instead of throwing
+  return ctx ?? defaultAuth;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
